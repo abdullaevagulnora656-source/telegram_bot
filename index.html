@@ -1,0 +1,1503 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MyForum- Elektron Ariza va Sorovnoma</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:opsz@14..32&display=swap');
+        * { font-family: 'Inter', sans-serif; }
+        .tab-btn.active { background: #e0e7ff; color: #4338ca; font-weight: 600; }
+        .file-input { font-size: 0.75rem; }
+        .badge-pulse { animation: pulse 1.8s infinite; }
+        @keyframes pulse { 0% { opacity: 0.7; } 50% { opacity: 1; } 100% { opacity: 0.7; } }
+        .modal-overlay { backdrop-filter: blur(3px); }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #818cf8; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col">
+
+    <div id="app" class="flex-1 flex flex-col"></div>
+    <div id="modalContainer"></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, set, get, update, remove, push, onValue, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDafsnHRJpk5cM9eXvTWfwuQy1QOgBJ0TA",
+            authDomain: "ilovalarim-944d0.firebaseapp.com",
+            databaseURL: "https://ilovalarim-944d0-default-rtdb.firebaseio.com",
+            projectId: "ilovalarim-944d0",
+            storageBucket: "ilovalarim-944d0.firebasestorage.app",
+            messagingSenderId: "120782588271",
+            appId: "1:120782588271:web:161269f048b218c52bc09a"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        const CACHE = { user: null, arizaTurlari: null, arizalar: null, yangiliklar: null, holatlar: null, users: null, xabarlar: null, sorovnomalar: null, sorovnomaTurlari: null, adminRuxsatlar: null };
+        let profiles = JSON.parse(localStorage.getItem('app_profiles')) || [];
+        let currentProfileId = localStorage.getItem('current_profile_id') || null;
+        let readItems = JSON.parse(localStorage.getItem('app_read_items')) || [];
+
+        function markAsRead(itemId) {
+            if (!readItems.includes(itemId)) { readItems.push(itemId); localStorage.setItem('app_read_items', JSON.stringify(readItems)); updateBadges(); }
+        }
+
+        // ------------------ AUTH / PIN ------------------
+        async function initSystem() {
+            const usersSnap = await get(ref(db, 'users'));
+            if (!usersSnap.exists()) {
+                const newId = Math.floor(100000 + Math.random() * 900000).toString();
+                await set(ref(db, `users/${newId}`), { id: newId, pin: "1234", role: 'admin', status: 'offline', lastSeen: new Date().toISOString(), blocked: false });
+                profiles = [{ id: newId, pin: "1234", role: 'admin' }];
+                localStorage.setItem('app_profiles', JSON.stringify(profiles));
+                currentProfileId = newId; localStorage.setItem('current_profile_id', currentProfileId);
+            } else if (profiles.length === 0) {
+                const users = usersSnap.val(); const firstId = Object.keys(users)[0];
+                profiles.push(users[firstId]); localStorage.setItem('app_profiles', JSON.stringify(profiles));
+                currentProfileId = firstId; localStorage.setItem('current_profile_id', currentProfileId);
+            }
+            if (currentProfileId) {
+                const check = await get(ref(db, `users/${currentProfileId}`));
+                if (!check.exists()) { profiles = profiles.filter(p => p.id !== currentProfileId); localStorage.setItem('app_profiles', JSON.stringify(profiles)); currentProfileId = profiles.length ? profiles[0].id : null; localStorage.setItem('current_profile_id', currentProfileId || ''); }
+            }
+            const active = profiles.find(p => p.id === currentProfileId);
+            if (!active && profiles.length) { currentProfileId = profiles[0].id; localStorage.setItem('current_profile_id', currentProfileId); }
+            renderAuthOrDashboard();
+        }
+
+        function setupPresence(userId) {
+            if (!userId) return;
+            const refUser = ref(db, `users/${userId}`);
+            update(refUser, { status: 'online', lastSeen: new Date().toISOString() });
+            onDisconnect(refUser).update({ status: 'offline', lastSeen: new Date().toISOString() });
+        }
+
+        async function getCurrentUser(force = false) {
+            if (!currentProfileId) return null;
+            if (!force && CACHE.user && CACHE.user.id === currentProfileId) return CACHE.user;
+            const snap = await get(ref(db, `users/${currentProfileId}`));
+            if (snap.exists()) { CACHE.user = snap.val(); return CACHE.user; }
+            return null;
+        }
+
+        // ---------- ADMIN RUXSATLARI ----------
+        const ADMIN_PERM_LIST = [
+            'arizalar', 'sorovnomalar', 'turlar', 'sorovnoma_turlar', 'statistika',
+            'holatlar', 'users', 'ruxsatlar', 'yangilik', 'xabarlar', 'texnik',
+            'admin_ruxsatlar' // o'zini o'zi boshqarish
+        ];
+
+        async function getAdminRuxsatlar(force = false) {
+            if (!force && CACHE.adminRuxsatlar) return CACHE.adminRuxsatlar;
+            const snap = await get(ref(db, 'adminRuxsatlar'));
+            CACHE.adminRuxsatlar = snap.exists() ? snap.val() : {};
+            return CACHE.adminRuxsatlar;
+        }
+
+        async function hasAdminPerm(permKey) {
+            const user = await getCurrentUser();
+            if (!user || user.role !== 'admin') return false;
+            // Agar permKey 'admin_ruxsatlar' bo'lsa, uni maxsus ruxsat sifatida tekshiramiz
+            // Asosiy admin (birinchi admin) yoki ruxsat berilgan bo'lsa
+            const ruxsatlar = await getAdminRuxsatlar(true);
+            const userPerms = ruxsatlar[user.id] || {};
+            // Default: agar ruxsatlar mavjud bo'lmasa, barcha ruxsatlar true (eski versiya)
+            if (Object.keys(userPerms).length === 0) {
+                // Agar umuman ruxsat yozuvi bo'lmasa, hamma ruxsat bor deb hisoblaymiz
+                return true;
+            }
+            return userPerms[permKey] === true;
+        }
+
+        async function setAdminPerm(userId, permKey, value) {
+            await update(ref(db, `adminRuxsatlar/${userId}`), { [permKey]: value });
+            CACHE.adminRuxsatlar = null;
+        }
+
+        // ------------------ RENDER AUTH / DASHBOARD ------------------
+        async function renderAuthOrDashboard() {
+            const appDiv = document.getElementById('app');
+            const user = await getCurrentUser(true);
+            if (!user) { appDiv.innerHTML = `<div class="p-8 text-center text-red-500 font-bold">Profil topilmadi!</div>`; return; }
+            if (user.blocked) { appDiv.innerHTML = `<div class="p-8 text-center text-red-600 font-bold text-xl">ID ${user.id} bloklangan!</div>`; return; }
+            if (!sessionStorage.getItem(`auth_${user.id}`)) { renderPinPrompt(appDiv, user); return; }
+            setupPresence(user.id);
+            renderMainDashboard(appDiv, user);
+        }
+
+        function renderPinPrompt(container, user) {
+            container.innerHTML = `
+                <div class="flex-1 flex items-center justify-center p-4 bg-gradient-to-br from-indigo-50 to-purple-50">
+                    <div class="bg-white/80 backdrop-blur-md p-8 rounded-3xl shadow-2xl w-full max-w-md border border-indigo-100 text-center space-y-6">
+                        <div class="w-20 h-20 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-2xl flex items-center justify-center mx-auto text-3xl shadow-lg"><i class="fa-solid fa-shield-halved"></i></div>
+                        <div><h1 class="text-2xl font-extrabold text-gray-800">Kirish</h1><p class="text-sm text-gray-500 mt-1">ID: <span class="font-bold text-indigo-600">${user.id}</span> · ${user.role.toUpperCase()}</p></div>
+                        <div class="space-y-4">
+                            <input type="password" id="pinInput" placeholder="Himoya paroli" class="w-full px-5 py-3.5 border-2 border-indigo-200 rounded-2xl text-center text-xl tracking-widest font-bold focus:ring-4 focus:ring-indigo-300 focus:outline-none bg-white/70">
+                            <button id="verifyPinBtn" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3.5 rounded-2xl font-bold shadow-lg hover:shadow-xl transition"><i class="fa-regular fa-circle-check mr-2"></i> Kirish</button>
+                        </div>
+                        <div class="pt-2"><button id="adminLoginBtn" class="w-full bg-gradient-to-r from-purple-700 to-pink-600 text-white py-2.5 rounded-2xl font-semibold text-sm shadow hover:shadow-lg transition"><i class="fa-solid fa-crown mr-2"></i> Admin sifatida kirish</button></div>
+                        <div class="pt-4 border-t flex flex-wrap justify-between items-center text-xs text-gray-500 gap-2">
+                            <select id="quickProfileSwitch" class="border-2 border-indigo-200 px-3 py-1.5 rounded-xl font-medium bg-white/70 text-indigo-700">${profiles.map(p => `<option value="${p.id}" ${p.id === user.id ? 'selected' : ''}>ID: ${p.id} (${p.role})</option>`).join('')}</select>
+                            <button id="loginWithExistingIdBtn" class="border-2 border-purple-500 text-purple-700 px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-purple-50"><i class="fa-regular fa-id-card mr-1"></i> ID kirit</button>
+                            <button id="createProfileFromPinBtn" class="border-2 border-indigo-500 text-indigo-700 px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-indigo-50"><i class="fa-solid fa-user-plus mr-1"></i> Yangi ID</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('verifyPinBtn').addEventListener('click', async () => {
+                const pin = document.getElementById('pinInput').value.trim();
+                const snap = await get(ref(db, `users/${user.id}`)); const dbUser = snap.exists() ? snap.val() : user;
+                if (dbUser.blocked) { alert("ID bloklangan!"); return; }
+                if (pin === (dbUser.pin || "1234")) { sessionStorage.setItem(`auth_${user.id}`, "true"); renderAuthOrDashboard(); }
+                else alert("Noto'g'ri parol!");
+            });
+            document.getElementById('adminLoginBtn').addEventListener('click', async () => {
+                const p = prompt("Admin paroli:"); if (p === "900") { await update(ref(db, `users/${user.id}`), { role: 'admin' }); sessionStorage.setItem(`auth_${user.id}`, "true"); sessionStorage.setItem(`admin_verified_${user.id}`, "true"); CACHE.user = null; renderAuthOrDashboard(); } else alert("Xato");
+            });
+            document.getElementById('loginWithExistingIdBtn').addEventListener('click', async () => {
+                const id = prompt("ID:"); if (!id) return; const snap = await get(ref(db, `users/${id.trim()}`)); if (!snap.exists()) { alert("Yo'q"); return; }
+                const data = snap.val(); if (data.blocked) { alert("Bloklangan"); return; }
+                const pin = prompt(`ID ${id} parol:`); if (pin === null) return;
+                if (pin.trim() === (data.pin || "1234")) { if (!profiles.some(p => p.id === data.id)) { profiles.push(data); localStorage.setItem('app_profiles', JSON.stringify(profiles)); } currentProfileId = data.id; localStorage.setItem('current_profile_id', currentProfileId); sessionStorage.setItem(`auth_${data.id}`, "true"); CACHE.user = null; renderAuthOrDashboard(); } else alert("Parol xato");
+            });
+            document.getElementById('quickProfileSwitch').addEventListener('change', (e) => { currentProfileId = e.target.value; localStorage.setItem('current_profile_id', currentProfileId); CACHE.user = null; renderAuthOrDashboard(); });
+            document.getElementById('createProfileFromPinBtn').addEventListener('click', async () => {
+                let newId; let exists = true; while (exists) { newId = Math.floor(100000 + Math.random() * 900000).toString(); const s = await get(ref(db, `users/${newId}`)); exists = s.exists(); }
+                const p = { id: newId, pin: "1234", role: 'odam', status: 'offline', lastSeen: new Date().toISOString(), blocked: false };
+                await set(ref(db, `users/${newId}`), p); if (!profiles.some(x => x.id === newId)) { profiles.push(p); localStorage.setItem('app_profiles', JSON.stringify(profiles)); }
+                currentProfileId = newId; localStorage.setItem('current_profile_id', currentProfileId); CACHE.user = null; renderAuthOrDashboard();
+            });
+        }
+
+        // ------------------ DASHBOARD ------------------
+        async function renderMainDashboard(container, user) {
+            const isAdmin = user.role === 'admin';
+            const permSnap = await get(ref(db, `ruxsatlar/${user.id}`));
+            const perms = permSnap.exists() ? permSnap.val() : {};
+            const hasPerm = (key) => { if (isAdmin) return true; if (key.startsWith('admin_')) return false; return perms[key] !== false; };
+            // Admin ruxsatlari
+            const hasAdmin = async (key) => { if (!isAdmin) return false; return await hasAdminPerm(key); };
+
+            // Menyu elementlari
+            const menuItems = [];
+
+            // Oddiy foydalanuvchi menyulari
+            if (hasPerm('ariza')) menuItems.push({ id: 'ariza', label: 'Ariza', icon: 'fa-regular fa-file-lines text-indigo-500', badge: false });
+            if (hasPerm('arizalarim')) menuItems.push({ id: 'arizalarim', label: 'Arizalarim', icon: 'fa-regular fa-folder-open text-indigo-500', badge: false });
+            if (hasPerm('sorovnoma')) menuItems.push({ id: 'sorovnoma', label: 'So‘rovnoma', icon: 'fa-regular fa-rectangle-list text-emerald-500', badge: false });
+            if (hasPerm('sorovnomalarim')) menuItems.push({ id: 'sorovnomalarim', label: 'So‘rovnomalarim', icon: 'fa-regular fa-copy text-emerald-500', badge: false });
+            if (hasPerm('yangiliklar')) menuItems.push({ id: 'yangiliklar', label: 'Yangiliklar', icon: 'fa-regular fa-newspaper text-indigo-500', badge: 'yangiliklar' });
+            if (hasPerm('xabarlar')) menuItems.push({ id: 'xabarlar', label: 'Xabarlar', icon: 'fa-regular fa-message text-indigo-500', badge: 'xabarlar' });
+            if (hasPerm('profillarim')) menuItems.push({ id: 'profillarim', label: 'Profillarim', icon: 'fa-regular fa-users text-indigo-500', badge: false });
+
+            // Admin menyulari (faqat admin va ruxsat bo'lsa)
+            if (isAdmin) {
+                const adminMenuItems = [
+                    { id: 'admin_arizalar', label: 'Arizalar', icon: 'fa-regular fa-shield text-purple-500', perm: 'arizalar' },
+                    { id: 'admin_sorovnomalar', label: 'So‘rovnomalar', icon: 'fa-regular fa-rectangle-list text-emerald-500', perm: 'sorovnomalar' },
+                    { id: 'admin_turlar', label: 'Ariza turlari', icon: 'fa-regular fa-gear text-purple-500', perm: 'turlar' },
+                    { id: 'admin_sorovnoma_turlar', label: 'So‘rovnoma turlari', icon: 'fa-regular fa-list-check text-emerald-500', perm: 'sorovnoma_turlar' },
+                    { id: 'admin_statistika', label: 'Statistika', icon: 'fa-regular fa-chart-pie text-purple-500', perm: 'statistika' },
+                    { id: 'admin_holatlar', label: 'Holatlar', icon: 'fa-regular fa-palette text-purple-500', perm: 'holatlar' },
+                    { id: 'admin_users', label: 'Foydalanuvchilar', icon: 'fa-regular fa-users-gear text-purple-500', perm: 'users' },
+                    { id: 'admin_ruxsatlar', label: 'Ruxsatlar', icon: 'fa-regular fa-user-lock text-purple-500', perm: 'ruxsatlar' },
+                    { id: 'admin_yangilik', label: 'Yangiliklar', icon: 'fa-regular fa-bullhorn text-purple-500', perm: 'yangilik' },
+                    { id: 'admin_xabarlar', label: 'Xabarlar', icon: 'fa-regular fa-comments text-purple-500', perm: 'xabarlar' },
+                    { id: 'admin_texnik', label: 'Texnik ishlar', icon: 'fa-regular fa-wrench text-purple-500', perm: 'texnik' },
+                    { id: 'admin_privileges', label: 'Admin ruxsatlari', icon: 'fa-regular fa-shield-halved text-purple-500', perm: 'admin_ruxsatlar' }
+                ];
+                for (let item of adminMenuItems) {
+                    const allowed = await hasAdmin(item.perm);
+                    if (allowed) {
+                        menuItems.push({ id: item.id, label: item.label, icon: item.icon, badge: false, admin: true });
+                    }
+                }
+            }
+
+            // Badge funksiyasi
+            const badgeHtml = (id) => id ? `<span id="badge_${id}" class="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-bold hidden">0</span>` : '';
+
+            let menuHtml = menuItems.map(item => `
+                <button onclick="switchTab('${item.id}')" class="w-full text-left px-4 py-2.5 rounded-2xl font-medium text-sm transition flex items-center justify-between tab-btn" data-tab="${item.id}">
+                    <span><i class="${item.icon} mr-3"></i>${item.label}</span>
+                    ${item.badge ? badgeHtml(item.badge) : ''}
+                </button>
+            `).join('');
+
+            container.innerHTML = `
+                <header class="bg-white/80 backdrop-blur-md border-b border-indigo-100 shadow-sm sticky top-0 z-50">
+                    <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+                        <div class="flex items-center gap-4">
+                            <span class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold px-4 py-1.5 rounded-2xl text-sm shadow">ID: ${user.id}</span>
+                            <span class="text-xs uppercase font-bold px-3 py-1 rounded-full ${isAdmin ? 'bg-purple-200 text-purple-800' : 'bg-blue-200 text-blue-800'}">${user.role}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            ${isAdmin ? `<button onclick="openAdminGate()" class="text-xs bg-purple-600 text-white font-bold px-4 py-2 rounded-2xl shadow hover:bg-purple-700 transition"><i class="fa-solid fa-shield-halved mr-1"></i> Admin</button>` : ''}
+                            <button onclick="logoutUser('${user.id}')" class="text-xs bg-red-50 text-red-600 font-bold px-4 py-2 rounded-2xl hover:bg-red-100 transition"><i class="fa-regular fa-right-from-bracket mr-1"></i> Chiqish</button>
+                        </div>
+                    </div>
+                </header>
+                <div class="max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-4 gap-6 flex-1">
+                    <div class="lg:col-span-1 space-y-2">
+                        <div class="bg-white/70 backdrop-blur-sm p-4 rounded-3xl shadow-sm border border-indigo-100 space-y-1">
+                            <div class="text-xs font-bold text-gray-400 px-3 uppercase tracking-wider mb-1">Menyular</div>
+                            ${menuHtml}
+                        </div>
+                    </div>
+                    <div id="tabContent" class="lg:col-span-3"></div>
+                </div>
+            `;
+            updateBadges();
+            const first = document.querySelector('.tab-btn');
+            if (first) { const t = first.dataset.tab; if (t.startsWith('admin_')) window.checkAdminPasswordAndSwitch(t); else window.switchTab(t); }
+            else document.getElementById('tabContent').innerHTML = `<div class="bg-white/70 p-6 rounded-3xl shadow-sm border text-center text-gray-400 font-semibold">Hech qanday funksiya yo‘q</div>`;
+        }
+
+        // ------------------ BADGES ------------------
+        async function updateBadges() {
+            const user = await getCurrentUser(); if (!user) return;
+            const xData = await getXabarlarCached(true); let unreadX = 0;
+            for (let bKey in xData) { const b = xData[bKey]; const list = b.xabarlar || {}; for (let xKey in list) { const x = list[xKey]; if ((!x.targetId || x.targetId === user.id) && !readItems.includes(xKey)) unreadX++; } }
+            const xBadge = document.getElementById('badge_xabarlar'); if (xBadge) { if (unreadX > 0) { xBadge.innerText = unreadX; xBadge.classList.remove('hidden'); } else xBadge.classList.add('hidden'); }
+            const yData = await getYangiliklarCached(true); let unreadY = 0; for (let yKey in yData) { if (!readItems.includes(yKey)) unreadY++; }
+            const yBadge = document.getElementById('badge_yangiliklar'); if (yBadge) { if (unreadY > 0) { yBadge.innerText = unreadY; yBadge.classList.remove('hidden'); } else yBadge.classList.add('hidden'); }
+        }
+
+        window.logoutUser = async function(id) { await update(ref(db, `users/${id}`), { status: 'offline', lastSeen: new Date().toISOString() }); sessionStorage.removeItem(`auth_${id}`); sessionStorage.removeItem(`admin_verified_${id}`); CACHE.user = null; initSystem(); };
+        window.openAdminGate = async function() { const user = await getCurrentUser(); if (!user || user.role !== 'admin') return; sessionStorage.removeItem(`admin_verified_${user.id}`); window.checkAdminPasswordAndSwitch('admin_arizalar'); };
+        window.checkAdminPasswordAndSwitch = async function(tab) {
+            const user = await getCurrentUser(); if (!user || user.role !== 'admin') { alert("Huquq yo‘q!"); return; }
+            if (sessionStorage.getItem(`admin_verified_${user.id}`) === "true") { window.switchTab(tab); return; }
+            const p = prompt("Admin paroli:"); if (p === "900") { sessionStorage.setItem(`admin_verified_${user.id}`, "true"); window.switchTab(tab); } else alert("Xato");
+        };
+
+        function showLoading(content) { content.innerHTML = `<div class="bg-white/70 p-12 rounded-3xl shadow-sm border text-center"><div class="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div><p class="text-sm text-gray-500 mt-3">Yuklanmoqda...</p></div>`; }
+
+        window.switchTab = async function(tab) {
+            const user = await getCurrentUser(); if (!user) return;
+            if (tab.startsWith('admin_') && user.role !== 'admin') return;
+            document.querySelectorAll('.tab-btn').forEach(b => { if (b.dataset.tab === tab) b.classList.add('active'); else b.classList.remove('active'); });
+            const content = document.getElementById('tabContent'); showLoading(content);
+            setTimeout(() => {
+                if (tab === 'ariza') renderArizaForm(content);
+                else if (tab === 'arizalarim') renderArizalarim(content);
+                else if (tab === 'sorovnoma') renderSorovnomaForm(content);
+                else if (tab === 'sorovnomalarim') renderSorovnomalarim(content);
+                else if (tab === 'yangiliklar') renderYangiliklarUser(content);
+                else if (tab === 'xabarlar') renderXabarlarUser(content);
+                else if (tab === 'profillarim') renderProfillarim(content);
+                else if (tab === 'admin_arizalar') renderAdminArizalar(content);
+                else if (tab === 'admin_sorovnomalar') renderAdminSorovnomalar(content);
+                else if (tab === 'admin_turlar') renderAdminTurlar(content);
+                else if (tab === 'admin_sorovnoma_turlar') renderAdminSorovnomaTurlar(content);
+                else if (tab === 'admin_statistika') renderAdminStatistika(content);
+                else if (tab === 'admin_holatlar') renderAdminHolatlar(content);
+                else if (tab === 'admin_users') renderAdminUsers(content);
+                else if (tab === 'admin_ruxsatlar') renderAdminRuxsatlar(content);
+                else if (tab === 'admin_yangilik') renderAdminYangilikManagement(content);
+                else if (tab === 'admin_xabarlar') renderAdminXabarlarManagement(content);
+                else if (tab === 'admin_texnik') renderAdminTexnik(content);
+                else if (tab === 'admin_privileges') renderAdminPrivileges(content);
+                else content.innerHTML = `<div class="bg-white/70 p-6 rounded-3xl shadow-sm border text-center text-gray-400">Bo'lim tayyorlanmoqda</div>`;
+            }, 10);
+        };
+
+        // ------------------ PROFILLAR ------------------
+        async function renderProfillarim(container) {
+            const user = await getCurrentUser();
+            let html = `<div class="bg-white/70 backdrop-blur-sm p-6 rounded-3xl shadow-sm border border-indigo-100 space-y-6"><div class="flex justify-between"><div><h2 class="text-2xl font-bold text-gray-800">Profillarim</h2><p class="text-sm text-gray-500">Saqlangan profillar</p></div><button id="addNewProfileBtn" class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-5 py-2.5 rounded-2xl font-bold shadow hover:shadow-lg transition"><i class="fa-solid fa-user-plus mr-2"></i>Yangi ID</button></div><div class="space-y-3">`;
+            for (let p of profiles) {
+                const isCurrent = p.id === user.id;
+                html += `<div class="border p-4 rounded-2xl flex items-center justify-between ${isCurrent ? 'bg-indigo-50/60 border-indigo-300' : 'bg-gray-50'}"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center"><i class="fa-solid fa-user"></i></div><div><h4 class="font-bold">ID: ${p.id} ${isCurrent ? '<span class="text-xs bg-indigo-600 text-white px-2 py-0.5 rounded-full ml-2">Joriy</span>' : ''}</h4><p class="text-xs uppercase font-medium text-gray-500">${p.role}</p></div></div><div class="flex gap-2">${!isCurrent ? `<button onclick="switchToProfile('${p.id}')" class="bg-indigo-600 text-white px-4 py-2 rounded-2xl text-xs font-bold hover:bg-indigo-700">Kirish</button><button onclick="removeProfileItem('${p.id}')" class="bg-red-50 text-red-600 px-3 py-2 rounded-2xl text-xs font-bold hover:bg-red-100">O'chirish</button>` : `<span class="text-xs text-gray-400 font-medium">Faol</span>`}</div></div>`;
+            }
+            html += `</div></div>`;
+            container.innerHTML = html;
+            document.getElementById('addNewProfileBtn')?.addEventListener('click', async () => {
+                let newId; let exists = true; while (exists) { newId = Math.floor(100000 + Math.random() * 900000).toString(); const s = await get(ref(db, `users/${newId}`)); exists = s.exists(); }
+                const p = { id: newId, pin: "1234", role: 'odam', status: 'offline', lastSeen: new Date().toISOString(), blocked: false };
+                await set(ref(db, `users/${newId}`), p); if (!profiles.some(x => x.id === newId)) { profiles.push(p); localStorage.setItem('app_profiles', JSON.stringify(profiles)); }
+                currentProfileId = newId; localStorage.setItem('current_profile_id', currentProfileId); CACHE.user = null; renderAuthOrDashboard();
+            });
+        }
+        window.switchToProfile = async function(id) { const s = await get(ref(db, `users/${id}`)); if (!s.exists()) { alert("ID topilmadi"); return; } currentProfileId = id; localStorage.setItem('current_profile_id', currentProfileId); CACHE.user = null; renderAuthOrDashboard(); };
+        window.removeProfileItem = function(id) { if (confirm("O‘chirilsin?")) { profiles = profiles.filter(p => p.id !== id); localStorage.setItem('app_profiles', JSON.stringify(profiles)); sessionStorage.removeItem(`auth_${id}`); sessionStorage.removeItem(`admin_verified_${id}`); if (currentProfileId === id) { currentProfileId = profiles.length ? profiles[0].id : null; localStorage.setItem('current_profile_id', currentProfileId || ''); } CACHE.user = null; initSystem(); } };
+
+        // ---------- CACHE HELPERS ----------
+        async function getArizaTurlariCached(force = false) { if (!force && CACHE.arizaTurlari) return CACHE.arizaTurlari; const s = await get(ref(db, 'arizaTurlari')); CACHE.arizaTurlari = s.exists() ? s.val() : {}; return CACHE.arizaTurlari; }
+        async function getArizalarCached(force = false) { if (!force && CACHE.arizalar) return CACHE.arizalar; const s = await get(ref(db, 'arizalar')); CACHE.arizalar = s.exists() ? s.val() : {}; return CACHE.arizalar; }
+        async function getYangiliklarCached(force = false) { if (!force && CACHE.yangiliklar) return CACHE.yangiliklar; const s = await get(ref(db, 'yangiliklar')); CACHE.yangiliklar = s.exists() ? s.val() : {}; return CACHE.yangiliklar; }
+        async function getHolatlarCached(force = false) { if (!force && CACHE.holatlar) return CACHE.holatlar; const s = await get(ref(db, 'holatlar')); CACHE.holatlar = s.exists() ? s.val() : {}; return CACHE.holatlar; }
+        async function getXabarlarCached(force = false) { if (!force && CACHE.xabarlar) return CACHE.xabarlar; const s = await get(ref(db, 'xabarlarBolimlari')); CACHE.xabarlar = s.exists() ? s.val() : {}; return CACHE.xabarlar; }
+        async function getSorovnomaTurlari(force = false) { if (!force && CACHE.sorovnomaTurlari) return CACHE.sorovnomaTurlari; const s = await get(ref(db, 'sorovnomaTurlari')); CACHE.sorovnomaTurlari = s.exists() ? s.val() : {}; return CACHE.sorovnomaTurlari; }
+        async function getSorovnomalar(force = false) { if (!force && CACHE.sorovnomalar) return CACHE.sorovnomalar; const s = await get(ref(db, 'sorovnomalar')); CACHE.sorovnomalar = s.exists() ? s.val() : {}; return CACHE.sorovnomalar; }
+
+        // ------------------ ARIZA ------------------
+        async function renderArizaForm(container) {
+            const user = await getCurrentUser();
+            const turlar = await getArizaTurlariCached(true);
+            const arizalar = await getArizalarCached(true);
+            let userTurCounts = {};
+            for (let aId in arizalar) { const a = arizalar[aId]; if (a.userId === user.id) userTurCounts[a.turKey] = (userTurCounts[a.turKey] || 0) + 1; }
+            container.innerHTML = `
+                <div class="bg-white/70 backdrop-blur-sm p-6 rounded-3xl shadow-sm border border-indigo-100 space-y-6">
+                    <div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-file-lines text-indigo-500 mr-3"></i>Ariza</h2><p class="text-sm text-gray-500">Tur tanlang va maydonlarni to‘ldiring</p></div>
+                    <div><label class="block text-sm font-semibold text-gray-700 mb-1">Ariza turi</label>
+                        <select id="selectArizaTuri" class="w-full px-4 py-3.5 border-2 border-indigo-200 rounded-2xl focus:ring-4 focus:ring-indigo-300 bg-white/80">
+                            <option value="">-- Tanlang --</option>
+                            ${Object.keys(turlar).map(key => { const t = turlar[key]; const limit = parseInt(t.maxLimit) || 0; const count = userTurCounts[key] || 0; const disabled = limit > 0 && count >= limit; return `<option value="${key}" ${disabled ? 'disabled' : ''}>${t.nomi} ${limit > 0 ? `(${count}/${limit})` : ''} ${disabled ? '(limit)' : ''}</option>`; }).join('')}
+                        </select>
+                    </div>
+                    <div id="dinamikMaydonlar" class="space-y-4"></div>
+                    <button id="submitArizaBtn" class="hidden w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3.5 rounded-2xl font-bold shadow-lg hover:shadow-xl transition">Yuborish</button>
+                </div>
+            `;
+            document.getElementById('selectArizaTuri').addEventListener('change', async (e) => {
+                const key = e.target.value; const div = document.getElementById('dinamikMaydonlar'); div.innerHTML = '';
+                if (!key) { document.getElementById('submitArizaBtn').classList.add('hidden'); return; }
+                const maydonlar = turlar[key]?.maydonlar || {};
+                let html = '';
+                for (let mId in maydonlar) {
+                    const m = maydonlar[mId]; const req = m.majburiy !== false;
+                    html += `<div class="space-y-1"><label class="block text-sm font-medium text-gray-700">${m.nomi} <span class="text-xs text-indigo-500">(${m.turi})</span> ${req ? '<span class="text-red-500">*</span>' : '<span class="text-gray-400 text-xs">(ixtiyoriy)</span>'}</label>`;
+                    if (m.turi === 'matn') html += `<input type="text" data-fid="${mId}" data-ftype="matn" data-req="${req}" class="ariza-field w-full px-4 py-3 border-2 border-indigo-200 rounded-2xl" ${req ? 'required' : ''}>`;
+                    else if (m.turi === 'nomer') html += `<input type="number" data-fid="${mId}" data-ftype="nomer" data-req="${req}" class="ariza-field w-full px-4 py-3 border-2 border-indigo-200 rounded-2xl" ${req ? 'required' : ''}>`;
+                    else if (m.turi === 'sana') html += `<input type="date" data-fid="${mId}" data-ftype="sana" data-req="${req}" class="ariza-field w-full px-4 py-3 border-2 border-indigo-200 rounded-2xl" ${req ? 'required' : ''}>`;
+                    else if (m.turi === 'vaqt') html += `<input type="time" step="1" data-fid="${mId}" data-ftype="vaqt" data-req="${req}" class="ariza-field w-full px-4 py-3 border-2 border-indigo-200 rounded-2xl" ${req ? 'required' : ''}>`;
+                    else if (m.turi === 'tanlov') {
+                        const vars = m.variantlar ? m.variantlar.split(',').map(v => v.trim()).filter(Boolean) : [];
+                        html += `<select data-fid="${mId}" data-ftype="tanlov" data-req="${req}" class="ariza-field w-full px-4 py-3.5 border-2 border-indigo-200 rounded-2xl bg-white" ${req ? 'required' : ''}><option value="">-- Tanlang --</option>${vars.map(v => `<option value="${v}">${v}</option>`).join('')}</select>`;
+                    } else if (m.turi === 'rasm_tushish') html += `<div class="p-4 bg-indigo-50/50 rounded-2xl border-2 border-dashed border-indigo-300"><span class="text-xs text-indigo-600 font-bold"><i class="fa-regular fa-camera mr-1"></i>Kamera</span><input type="file" accept="image/*" capture="environment" data-fid="${mId}" data-ftype="rasm_tushish" data-req="${req}" class="ariza-field w-full mt-1 file-input" ${req ? 'required' : ''}></div>`;
+                    else if (m.turi === 'galereyadan') html += `<div class="p-4 bg-purple-50/50 rounded-2xl border-2 border-dashed border-purple-300"><span class="text-xs text-purple-600 font-bold"><i class="fa-regular fa-images mr-1"></i>Galereya</span><input type="file" accept="image/*" multiple data-fid="${mId}" data-ftype="galereyadan" data-req="${req}" class="ariza-field w-full mt-1 file-input" ${req ? 'required' : ''}></div>`;
+                    else if (m.turi === 'rasm') html += `<div class="p-4 bg-blue-50/50 rounded-2xl border-2 border-dashed border-blue-300"><span class="text-xs text-blue-600 font-bold"><i class="fa-regular fa-image mr-1"></i>Rasm</span><input type="file" accept="image/*" multiple data-fid="${mId}" data-ftype="rasm" data-req="${req}" class="ariza-field w-full mt-1 file-input" ${req ? 'required' : ''}></div>`;
+                    else if (m.turi === 'video') html += `<div class="p-4 bg-rose-50/50 rounded-2xl border-2 border-dashed border-rose-300"><span class="text-xs text-rose-600 font-bold"><i class="fa-regular fa-video mr-1"></i>Video</span><input type="file" accept="video/*" data-fid="${mId}" data-ftype="video" data-req="${req}" class="ariza-field w-full mt-1 file-input" ${req ? 'required' : ''}></div>`;
+                    else html += `<input type="file" data-fid="${mId}" data-ftype="file" data-req="${req}" class="ariza-field w-full px-4 py-3 border-2 border-indigo-200 rounded-2xl file-input" ${req ? 'required' : ''}>`;
+                    html += `</div>`;
+                }
+                div.innerHTML = html;
+                document.getElementById('submitArizaBtn').classList.toggle('hidden', !Object.keys(maydonlar).length);
+            });
+            document.getElementById('submitArizaBtn').addEventListener('click', async () => {
+                const user = await getCurrentUser(); if (!user) return;
+                const turKey = document.getElementById('selectArizaTuri').value; if (!turKey) return;
+                const all = await getArizalarCached(true); let cnt = 0; for (let aId in all) { if (all[aId].userId === user.id && all[aId].turKey === turKey) cnt++; }
+                const limit = parseInt(turlar[turKey].maxLimit) || 0; if (limit > 0 && cnt >= limit) { alert(`Limit tugagan (${limit})`); return; }
+                const inputs = document.querySelectorAll('.ariza-field');
+                let data = {};
+                async function readFile(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); }); }
+                for (let inp of inputs) {
+                    const fid = inp.dataset.fid, ftype = inp.dataset.ftype, req = inp.dataset.req === 'true';
+                    if (['rasm','video','file','rasm_tushish','galereyadan'].includes(ftype)) {
+                        if (inp.files && inp.files.length) {
+                            let files = []; for (let f of inp.files) { try { const b64 = await readFile(f); files.push({ nomi: f.name, url: b64 }); } catch(e) {} }
+                            data[fid] = { turi: ftype, multiple: files.length > 1 || inp.multiple, files, nomi: files[0]?.nomi || '', url: files[0]?.url || '' };
+                        } else { if (req) { alert("Majburiy fayl maydoni!"); return; } data[fid] = { turi: ftype, multiple: false, files: [], nomi: "", url: "" }; }
+                    } else {
+                        if (req && !inp.value.trim()) { alert("Majburiy maydon!"); inp.focus(); return; }
+                        data[fid] = { turi: ftype, qiymat: inp.value };
+                    }
+                }
+                const hSnap = await get(ref(db, 'holatlar')); const holatlar = hSnap.exists() ? hSnap.val() : {};
+                let defHolat = 'Kutilmoqda', defRangi = 'background:#fef3c7;color:#92400e;', defTahrir = true, defOchirish = true;
+                const firstH = Object.keys(holatlar)[0]; if (firstH) { defHolat = holatlar[firstH].yozuv; defRangi = holatlar[firstH].rang; defTahrir = holatlar[firstH].tahrirlashRuxsati !== false; defOchirish = holatlar[firstH].ochirishRuxsati !== false; }
+                const raqam = Math.floor(100000 + Math.random() * 900000).toString();
+                const yeni = { id: raqam, userId: user.id, userRole: user.role, submittedByRole: user.role === 'admin' ? 'admin' : 'odam', sana: new Date().toISOString(), turKey, qiymatlar: data, holat: defHolat, holatRangi: defRangi, tahrirlashMumkin: defTahrir, ochirishMumkin: defOchirish, javob: '', korinsin: true };
+                await set(ref(db, `arizalar/${raqam}`), yeni);
+                CACHE.arizalar = null;
+                renderTabrikNoma(container, yeni);
+            });
+        }
+
+        function renderTabrikNoma(container, ariza) {
+            container.innerHTML = `
+                <div id="printArea" class="bg-white/90 backdrop-blur-sm p-8 rounded-3xl shadow-xl border border-indigo-100 text-center space-y-6">
+                    <div class="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto text-5xl shadow-lg"><i class="fa-regular fa-circle-check"></i></div>
+                    <div><h2 class="text-3xl font-extrabold text-gray-800">Qabul qilindi!</h2><p class="text-gray-600">Raqam: <strong class="text-indigo-600 text-xl">${ariza.id}</strong> · ID: ${ariza.userId}</p><p class="text-xs text-gray-400">${new Date(ariza.sana).toLocaleString()}</p></div>
+                    <div class="flex flex-wrap justify-center gap-4 pt-2"><button id="downloadPdfBtn" class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-2xl font-bold shadow hover:shadow-lg"><i class="fa-regular fa-file-pdf mr-2"></i>PDF</button><button id="downloadScreenshotBtn" class="bg-slate-700 text-white px-6 py-3 rounded-2xl font-bold shadow hover:shadow-lg"><i class="fa-regular fa-camera mr-2"></i>Skrinshot</button><button onclick="switchTab('ariza')" class="bg-gray-200 text-gray-700 px-6 py-3 rounded-2xl font-bold hover:bg-gray-300">Yangi</button></div>
+                </div>
+            `;
+            document.getElementById('downloadPdfBtn').addEventListener('click', () => { html2pdf().from(document.getElementById('printArea')).save(`Ariza_${ariza.id}.pdf`); });
+            document.getElementById('downloadScreenshotBtn').addEventListener('click', () => { html2canvas(document.getElementById('printArea')).then(canvas => { const a = document.createElement('a'); a.download = `Ariza_${ariza.id}.png`; a.href = canvas.toDataURL(); a.click(); }); });
+        }
+
+        function renderFieldItem(mKey, valObj) {
+            if (!valObj) return '';
+            if (typeof valObj === 'string') return `<div class="bg-gray-50 p-3 rounded-2xl border text-sm flex justify-between"><span class="text-gray-500 text-xs">${mKey}</span><span class="font-bold">${valObj}</span></div>`;
+            let html = '';
+            if (['rasm','rasm_tushish','galereyadan'].includes(valObj.turi)) {
+                const files = valObj.files && valObj.files.length ? valObj.files : (valObj.url ? [{ nomi: valObj.nomi, url: valObj.url }] : []);
+                if (files.length) {
+                    let imgs = `<div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">`;
+                    files.forEach(f => { imgs += `<a href="${f.url}" target="_blank" class="block bg-slate-900 rounded-xl overflow-hidden p-1 text-center"><img src="${f.url}" class="w-full h-32 object-contain rounded-lg"><span class="text-[10px] text-gray-300 truncate">${f.nomi || 'Rasm'}</span></a>`; });
+                    imgs += `</div>`;
+                    html = `<div class="mt-1"><span class="text-xs text-indigo-600 font-bold"><i class="fa-regular fa-image mr-1"></i>Rasm:</span>${imgs}</div>`;
+                } else html = `<span class="text-xs text-red-500">Rasm yo‘q</span>`;
+            } else if (valObj.turi === 'video' && valObj.url) {
+                html = `<div class="mt-1"><span class="text-xs text-purple-600 font-bold"><i class="fa-regular fa-video mr-1"></i>Video:</span><div class="bg-black rounded-xl overflow-hidden p-1 mt-1"><video controls class="w-full max-h-64 object-contain"><source src="${valObj.url}"></video></div></div>`;
+            } else if (valObj.turi === 'file' && valObj.url) {
+                html = `<div class="mt-1"><a href="${valObj.url}" download="${valObj.nomi || 'fayl'}" class="inline-flex items-center gap-2 bg-indigo-50 text-indigo-700 px-4 py-2 rounded-2xl text-xs font-bold hover:bg-indigo-100"><i class="fa-regular fa-download"></i>${valObj.nomi || 'Yuklab olish'}</a></div>`;
+            } else {
+                const val = valObj.qiymat || '';
+                let label = '';
+                if (valObj.turi === 'sana') label = '<span class="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full ml-2">Sana</span>';
+                else if (valObj.turi === 'vaqt') label = '<span class="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full ml-2">Vaqt</span>';
+                else if (valObj.turi === 'nomer') label = '<span class="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full ml-2">Raqam</span>';
+                else if (valObj.turi === 'tanlov') label = '<span class="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full ml-2">Tanlov</span>';
+                html = `<span class="font-bold">${val}</span> ${label}`;
+            }
+            return `<div class="bg-gray-50 p-3 rounded-2xl border text-sm"><span class="text-gray-400 text-xs uppercase font-medium block">${mKey}</span>${html}</div>`;
+        }
+
+        // ------------------ ARIZALARIM ------------------
+        async function renderArizalarim(container) {
+            const user = await getCurrentUser(); if (!user) return;
+            const arizalar = await getArizalarCached(true); const turlar = await getArizaTurlariCached(true);
+            container.innerHTML = `
+                <div class="bg-white/70 backdrop-blur-sm p-6 rounded-3xl shadow-sm border border-indigo-100 space-y-4">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3"><div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-folder-open text-indigo-500 mr-3"></i>Arizalarim</h2><p class="text-sm text-gray-500">ID: ${user.id}</p></div><div class="w-full md:w-72"><input type="text" id="userArizaSearch" placeholder="Qidirish..." class="w-full px-4 py-3 border-2 border-indigo-200 rounded-2xl focus:ring-4 focus:ring-indigo-300 bg-white/80"></div></div>
+                    <div id="userArizalarListContainer" class="space-y-4"></div>
+                </div>
+            `;
+            function draw(filter = '') {
+                const list = document.getElementById('userArizalarListContainer'); if (!list) return;
+                let html = ''; let found = false; const f = filter.toLowerCase();
+                for (let id in arizalar) {
+                    const a = arizalar[id]; if (a.userId !== user.id || !a.korinsin) continue;
+                    const turName = turlar[a.turKey] ? turlar[a.turKey].nomi : "Ariza";
+                    let searchText = `${a.id} ${turName} ${a.holat} ${a.javob || ''}`; if (a.qiymatlar) for (let mk in a.qiymatlar) { const v = a.qiymatlar[mk]; searchText += ` ${mk} ${typeof v === 'object' ? (v.qiymat || v.nomi || '') : v}`; }
+                    if (f && !searchText.toLowerCase().includes(f)) continue;
+                    found = true;
+                    let qiymatlarHtml = ''; if (a.qiymatlar) for (let mk in a.qiymatlar) qiymatlarHtml += renderFieldItem(mk, a.qiymatlar[mk]);
+                    let javobHtml = a.javob ? `<div class="bg-indigo-50/60 border border-indigo-200 p-4 rounded-2xl space-y-1"><div class="flex items-center gap-2 text-indigo-700 font-bold text-xs uppercase"><i class="fa-regular fa-circle-info"></i>Javob:</div><p class="text-sm text-indigo-900 whitespace-pre-wrap">${a.javob}</p></div>` : '';
+                    let submittedBy = a.submittedByRole === 'admin' ? `<div class="text-xs text-purple-600 font-bold mb-1"><i class="fa-regular fa-shield-halved mr-1"></i>Admin berdi</div>` : `<div class="text-xs text-blue-600 font-bold mb-1"><i class="fa-regular fa-user mr-1"></i>Foydalanuvchi</div>`;
+                    let actions = '';
+                    if (a.tahrirlashMumkin !== false || a.ochirishMumkin !== false) {
+                        actions = `<div class="flex gap-2 pt-2 border-t justify-end">`;
+                        if (a.tahrirlashMumkin !== false) actions += `<button onclick="openUserEditModal('${id}')" class="bg-blue-600 text-white px-4 py-1.5 rounded-2xl text-xs font-bold hover:bg-blue-700"><i class="fa-regular fa-pen mr-1"></i>Tahrirlash</button>`;
+                        if (a.ochirishMumkin !== false) actions += `<button onclick="userDeleteAriza('${id}')" class="bg-red-600 text-white px-4 py-1.5 rounded-2xl text-xs font-bold hover:bg-red-700"><i class="fa-regular fa-trash mr-1"></i>O'chirish</button>`;
+                        actions += `</div>`;
+                    }
+                    html += `<div class="border p-5 rounded-3xl bg-white shadow-sm space-y-3"><div class="flex justify-between items-center border-b pb-3"><div><span class="text-xs font-bold text-gray-400">ID:</span><span class="font-bold text-indigo-600 text-lg ml-2">${a.id}</span></div><div class="flex items-center gap-1.5 bg-gray-50 px-3 py-1 rounded-2xl border"><span class="text-gray-500 text-xs">Holat:</span><span class="px-3 py-0.5 rounded-full text-xs font-bold" style="${a.holatRangi || 'background:#f3f4f6;color:#1f2937;'}">${a.holat}</span></div></div>${submittedBy}<div><p class="text-sm font-semibold">Turi: <span class="text-indigo-600">${turName}</span></p><p class="text-xs text-gray-400">${new Date(a.sana).toLocaleString()}</p></div><div class="grid grid-cols-1 gap-3">${qiymatlarHtml}</div>${javobHtml}${actions}</div>`;
+                }
+                if (!found) html += `<div class="text-center py-10 text-gray-400">Arizalar mavjud emas</div>`;
+                list.innerHTML = html;
+            }
+            draw();
+            document.getElementById('userArizaSearch').addEventListener('input', (e) => draw(e.target.value.trim()));
+        }
+
+        window.userDeleteAriza = async function(id) { if (confirm("O'chirilsin?")) { await remove(ref(db, `arizalar/${id}`)); CACHE.arizalar = null; renderArizalarim(document.getElementById('tabContent')); } };
+        window.openUserEditModal = async function(arizaId) {
+            const arizalar = await getArizalarCached(); const a = arizalar[arizaId]; if (!a) return;
+            if (a.tahrirlashMumkin === false) { alert("Tahrirlash ruxsati yo‘q!"); return; }
+            const turlar = await getArizaTurlariCached(); const maydonlar = turlar[a.turKey]?.maydonlar || {};
+            const modal = document.getElementById('modalContainer');
+            let fields = '';
+            for (let mId in maydonlar) {
+                const m = maydonlar[mId]; const req = m.majburiy !== false; const old = a.qiymatlar && a.qiymatlar[mId] ? a.qiymatlar[mId] : ''; const oldVal = typeof old === 'object' ? (old.qiymat || '') : old;
+                fields += `<div class="space-y-1"><label class="block text-sm font-medium text-gray-700">${m.nomi} ${req ? '<span class="text-red-500">*</span>' : ''}</label>`;
+                if (m.turi === 'matn') fields += `<input type="text" data-fid="${mId}" data-ftype="matn" data-req="${req}" value="${oldVal}" class="edit-ariza-field w-full px-4 py-3 border-2 border-indigo-200 rounded-2xl" ${req ? 'required' : ''}>`;
+                else if (m.turi === 'nomer') fields += `<input type="number" data-fid="${mId}" data-ftype="nomer" data-req="${req}" value="${oldVal}" class="edit-ariza-field w-full px-4 py-3 border-2 border-indigo-200 rounded-2xl" ${req ? 'required' : ''}>`;
+                else if (m.turi === 'sana') fields += `<input type="date" data-fid="${mId}" data-ftype="sana" data-req="${req}" value="${oldVal}" class="edit-ariza-field w-full px-4 py-3 border-2 border-indigo-200 rounded-2xl" ${req ? 'required' : ''}>`;
+                else if (m.turi === 'vaqt') fields += `<input type="time" step="1" data-fid="${mId}" data-ftype="vaqt" data-req="${req}" value="${oldVal}" class="edit-ariza-field w-full px-4 py-3 border-2 border-indigo-200 rounded-2xl" ${req ? 'required' : ''}>`;
+                else if (m.turi === 'tanlov') {
+                    const vars = m.variantlar ? m.variantlar.split(',').map(v => v.trim()).filter(Boolean) : [];
+                    fields += `<select data-fid="${mId}" data-ftype="tanlov" data-req="${req}" class="edit-ariza-field w-full px-4 py-3.5 border-2 border-indigo-200 rounded-2xl bg-white" ${req ? 'required' : ''}><option value="">-- Tanlang --</option>${vars.map(v => `<option value="${v}" ${oldVal === v ? 'selected' : ''}>${v}</option>`).join('')}</select>`;
+                } else if (m.turi === 'rasm_tushish') fields += `<div class="p-3 bg-indigo-50/50 rounded-2xl"><input type="file" accept="image/*" capture="environment" data-fid="${mId}" data-ftype="rasm_tushish" data-req="false" class="edit-ariza-field w-full file-input"></div>`;
+                else if (m.turi === 'galereyadan') fields += `<div class="p-3 bg-purple-50/50 rounded-2xl"><input type="file" accept="image/*" multiple data-fid="${mId}" data-ftype="galereyadan" data-req="false" class="edit-ariza-field w-full file-input"></div>`;
+                else if (m.turi === 'rasm') fields += `<div class="p-3 bg-blue-50/50 rounded-2xl"><input type="file" accept="image/*" multiple data-fid="${mId}" data-ftype="rasm" data-req="false" class="edit-ariza-field w-full file-input"></div>`;
+                else if (m.turi === 'video') fields += `<div class="p-3 bg-rose-50/50 rounded-2xl"><input type="file" accept="video/*" data-fid="${mId}" data-ftype="video" data-req="false" class="edit-ariza-field w-full file-input"></div>`;
+                else fields += `<input type="file" data-fid="${mId}" data-ftype="file" data-req="false" class="edit-ariza-field w-full px-4 py-3 border-2 border-indigo-200 rounded-2xl file-input">`;
+                fields += `</div>`;
+            }
+            modal.innerHTML = `
+                <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto modal-overlay">
+                    <div class="bg-white p-6 md:p-8 rounded-3xl shadow-2xl w-full max-w-lg space-y-4 max-h-[90vh] overflow-y-auto border border-indigo-100">
+                        <div class="flex justify-between items-center border-b pb-3"><h3 class="text-2xl font-bold text-gray-800">Tahrirlash №${a.id}</h3><button onclick="closeModal()" class="text-gray-400 hover:text-gray-700 text-2xl font-bold px-2">&times;</button></div>
+                        <div id="editFormFieldsContainer" class="space-y-4">${fields}</div>
+                        <div class="flex justify-end gap-3 pt-4 border-t"><button onclick="closeModal()" class="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-2xl font-bold text-sm hover:bg-gray-200">Bekor</button><button onclick="saveEditedAriza('${arizaId}')" class="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-bold text-sm shadow hover:shadow-lg">Saqlash</button></div>
+                    </div>
+                </div>
+            `;
+        };
+        window.closeModal = function() { document.getElementById('modalContainer').innerHTML = ''; };
+        window.saveEditedAriza = async function(arizaId) {
+            const arizalar = await getArizalarCached(); const a = arizalar[arizaId]; if (!a) return;
+            const inputs = document.querySelectorAll('.edit-ariza-field');
+            let updated = { ...a.qiymatlar };
+            async function readFile(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); }); }
+            for (let inp of inputs) {
+                const fid = inp.dataset.fid, ftype = inp.dataset.ftype, req = inp.dataset.req === 'true';
+                if (['rasm','video','file','rasm_tushish','galereyadan'].includes(ftype)) {
+                    if (inp.files && inp.files.length) {
+                        let files = []; for (let f of inp.files) { try { const b64 = await readFile(f); files.push({ nomi: f.name, url: b64 }); } catch(e) {} }
+                        updated[fid] = { turi: ftype, multiple: files.length > 1 || inp.multiple, files, nomi: files[0]?.nomi || '', url: files[0]?.url || '' };
+                    }
+                } else {
+                    if (req && !inp.value.trim()) { alert("Majburiy maydon!"); inp.focus(); return; }
+                    if (updated[fid] && typeof updated[fid] === 'object') updated[fid].qiymat = inp.value;
+                    else updated[fid] = { turi: ftype, qiymat: inp.value };
+                }
+            }
+            await update(ref(db, `arizalar/${arizaId}`), { qiymatlar: updated });
+            CACHE.arizalar = null; alert("Tahrirlandi!"); closeModal(); renderArizalarim(document.getElementById('tabContent'));
+        };
+
+        // ------------------ SO'ROVNOMA ------------------
+        async function renderSorovnomaForm(container) {
+            const user = await getCurrentUser();
+            const turlar = await getSorovnomaTurlari(true);
+            const sorovnomalar = await getSorovnomalar(true);
+            let userCounts = {};
+            for (let sId in sorovnomalar) { const s = sorovnomalar[sId]; if (s.userId === user.id) userCounts[s.turKey] = (userCounts[s.turKey] || 0) + 1; }
+            container.innerHTML = `
+                <div class="bg-white/70 backdrop-blur-sm p-6 rounded-3xl shadow-sm border border-emerald-100 space-y-6">
+                    <div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-rectangle-list text-emerald-500 mr-3"></i>So‘rovnoma</h2><p class="text-sm text-gray-500">So‘rovnoma turini tanlang va maydonlarni to‘ldiring</p></div>
+                    <div><label class="block text-sm font-semibold text-gray-700 mb-1">So‘rovnoma turi</label>
+                        <select id="selectSorovnomaTuri" class="w-full px-4 py-3.5 border-2 border-emerald-200 rounded-2xl focus:ring-4 focus:ring-emerald-300 bg-white/80">
+                            <option value="">-- Tanlang --</option>
+                            ${Object.keys(turlar).map(key => { const t = turlar[key]; const limit = parseInt(t.maxLimit) || 0; const count = userCounts[key] || 0; const disabled = limit > 0 && count >= limit; return `<option value="${key}" ${disabled ? 'disabled' : ''}>${t.nomi} ${limit > 0 ? `(${count}/${limit})` : ''} ${disabled ? '(limit)' : ''}</option>`; }).join('')}
+                        </select>
+                    </div>
+                    <div id="dinamikSorovnomaMaydonlar" class="space-y-4"></div>
+                    <button id="submitSorovnomaBtn" class="hidden w-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white py-3.5 rounded-2xl font-bold shadow-lg hover:shadow-xl transition">Yuborish</button>
+                </div>
+            `;
+            document.getElementById('selectSorovnomaTuri').addEventListener('change', async (e) => {
+                const key = e.target.value; const div = document.getElementById('dinamikSorovnomaMaydonlar'); div.innerHTML = '';
+                if (!key) { document.getElementById('submitSorovnomaBtn').classList.add('hidden'); return; }
+                const maydonlar = turlar[key]?.maydonlar || {};
+                let html = '';
+                for (let mId in maydonlar) {
+                    const m = maydonlar[mId]; const req = m.majburiy !== false;
+                    html += `<div class="space-y-1"><label class="block text-sm font-medium text-gray-700">${m.nomi} <span class="text-xs text-emerald-500">(${m.turi})</span> ${req ? '<span class="text-red-500">*</span>' : '<span class="text-gray-400 text-xs">(ixtiyoriy)</span>'}</label>`;
+                    if (m.turi === 'matn') html += `<input type="text" data-fid="${mId}" data-ftype="matn" data-req="${req}" class="sorov-field w-full px-4 py-3 border-2 border-emerald-200 rounded-2xl" ${req ? 'required' : ''}>`;
+                    else if (m.turi === 'nomer') html += `<input type="number" data-fid="${mId}" data-ftype="nomer" data-req="${req}" class="sorov-field w-full px-4 py-3 border-2 border-emerald-200 rounded-2xl" ${req ? 'required' : ''}>`;
+                    else if (m.turi === 'sana') html += `<input type="date" data-fid="${mId}" data-ftype="sana" data-req="${req}" class="sorov-field w-full px-4 py-3 border-2 border-emerald-200 rounded-2xl" ${req ? 'required' : ''}>`;
+                    else if (m.turi === 'vaqt') html += `<input type="time" step="1" data-fid="${mId}" data-ftype="vaqt" data-req="${req}" class="sorov-field w-full px-4 py-3 border-2 border-emerald-200 rounded-2xl" ${req ? 'required' : ''}>`;
+                    else if (m.turi === 'tanlov') {
+                        const vars = m.variantlar ? m.variantlar.split(',').map(v => v.trim()).filter(Boolean) : [];
+                        html += `<select data-fid="${mId}" data-ftype="tanlov" data-req="${req}" class="sorov-field w-full px-4 py-3.5 border-2 border-emerald-200 rounded-2xl bg-white" ${req ? 'required' : ''}><option value="">-- Tanlang --</option>${vars.map(v => `<option value="${v}">${v}</option>`).join('')}</select>`;
+                    } else if (m.turi === 'rasm_tushish') html += `<div class="p-4 bg-emerald-50/50 rounded-2xl border-2 border-dashed border-emerald-300"><span class="text-xs text-emerald-600 font-bold"><i class="fa-regular fa-camera mr-1"></i>Kamera</span><input type="file" accept="image/*" capture="environment" data-fid="${mId}" data-ftype="rasm_tushish" data-req="${req}" class="sorov-field w-full mt-1 file-input" ${req ? 'required' : ''}></div>`;
+                    else if (m.turi === 'galereyadan') html += `<div class="p-4 bg-teal-50/50 rounded-2xl border-2 border-dashed border-teal-300"><span class="text-xs text-teal-600 font-bold"><i class="fa-regular fa-images mr-1"></i>Galereya</span><input type="file" accept="image/*" multiple data-fid="${mId}" data-ftype="galereyadan" data-req="${req}" class="sorov-field w-full mt-1 file-input" ${req ? 'required' : ''}></div>`;
+                    else if (m.turi === 'rasm') html += `<div class="p-4 bg-blue-50/50 rounded-2xl border-2 border-dashed border-blue-300"><span class="text-xs text-blue-600 font-bold"><i class="fa-regular fa-image mr-1"></i>Rasm</span><input type="file" accept="image/*" multiple data-fid="${mId}" data-ftype="rasm" data-req="${req}" class="sorov-field w-full mt-1 file-input" ${req ? 'required' : ''}></div>`;
+                    else if (m.turi === 'video') html += `<div class="p-4 bg-rose-50/50 rounded-2xl border-2 border-dashed border-rose-300"><span class="text-xs text-rose-600 font-bold"><i class="fa-regular fa-video mr-1"></i>Video</span><input type="file" accept="video/*" data-fid="${mId}" data-ftype="video" data-req="${req}" class="sorov-field w-full mt-1 file-input" ${req ? 'required' : ''}></div>`;
+                    else html += `<input type="file" data-fid="${mId}" data-ftype="file" data-req="${req}" class="sorov-field w-full px-4 py-3 border-2 border-emerald-200 rounded-2xl file-input" ${req ? 'required' : ''}>`;
+                    html += `</div>`;
+                }
+                div.innerHTML = html;
+                document.getElementById('submitSorovnomaBtn').classList.toggle('hidden', !Object.keys(maydonlar).length);
+            });
+            document.getElementById('submitSorovnomaBtn').addEventListener('click', async () => {
+                const user = await getCurrentUser(); if (!user) return;
+                const turKey = document.getElementById('selectSorovnomaTuri').value; if (!turKey) return;
+                const all = await getSorovnomalar(true); let cnt = 0; for (let sId in all) { if (all[sId].userId === user.id && all[sId].turKey === turKey) cnt++; }
+                const limit = parseInt(turlar[turKey].maxLimit) || 0; if (limit > 0 && cnt >= limit) { alert(`Limit tugagan (${limit})`); return; }
+                const inputs = document.querySelectorAll('.sorov-field');
+                let data = {};
+                async function readFile(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); }); }
+                for (let inp of inputs) {
+                    const fid = inp.dataset.fid, ftype = inp.dataset.ftype, req = inp.dataset.req === 'true';
+                    if (['rasm','video','file','rasm_tushish','galereyadan'].includes(ftype)) {
+                        if (inp.files && inp.files.length) {
+                            let files = []; for (let f of inp.files) { try { const b64 = await readFile(f); files.push({ nomi: f.name, url: b64 }); } catch(e) {} }
+                            data[fid] = { turi: ftype, multiple: files.length > 1 || inp.multiple, files, nomi: files[0]?.nomi || '', url: files[0]?.url || '' };
+                        } else { if (req) { alert("Majburiy fayl maydoni!"); return; } data[fid] = { turi: ftype, multiple: false, files: [], nomi: "", url: "" }; }
+                    } else {
+                        if (req && !inp.value.trim()) { alert("Majburiy maydon!"); inp.focus(); return; }
+                        data[fid] = { turi: ftype, qiymat: inp.value };
+                    }
+                }
+                const hSnap = await get(ref(db, 'holatlar')); const holatlar = hSnap.exists() ? hSnap.val() : {};
+                let defHolat = 'Kutilmoqda', defRangi = 'background:#fef3c7;color:#92400e;', defTahrir = true, defOchirish = true;
+                const firstH = Object.keys(holatlar)[0]; if (firstH) { defHolat = holatlar[firstH].yozuv; defRangi = holatlar[firstH].rang; defTahrir = holatlar[firstH].tahrirlashRuxsati !== false; defOchirish = holatlar[firstH].ochirishRuxsati !== false; }
+                const raqam = Math.floor(100000 + Math.random() * 900000).toString();
+                const yeni = { id: raqam, userId: user.id, userRole: user.role, submittedByRole: user.role === 'admin' ? 'admin' : 'odam', sana: new Date().toISOString(), turKey, qiymatlar: data, holat: defHolat, holatRangi: defRangi, tahrirlashMumkin: defTahrir, ochirishMumkin: defOchirish, javob: '', korinsin: true };
+                await set(ref(db, `sorovnomalar/${raqam}`), yeni);
+                CACHE.sorovnomalar = null;
+                renderTabrikNoma(container, yeni);
+            });
+        }
+
+        // ------------------ SO'ROVNOMALARIM ------------------
+        async function renderSorovnomalarim(container) {
+            const user = await getCurrentUser(); if (!user) return;
+            const sorovnomalar = await getSorovnomalar(true); const turlar = await getSorovnomaTurlari(true);
+            container.innerHTML = `
+                <div class="bg-white/70 backdrop-blur-sm p-6 rounded-3xl shadow-sm border border-emerald-100 space-y-4">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3"><div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-copy text-emerald-500 mr-3"></i>So‘rovnomalarim</h2><p class="text-sm text-gray-500">ID: ${user.id}</p></div><div class="w-full md:w-72"><input type="text" id="userSorovSearch" placeholder="Qidirish..." class="w-full px-4 py-3 border-2 border-emerald-200 rounded-2xl focus:ring-4 focus:ring-emerald-300 bg-white/80"></div></div>
+                    <div id="userSorovlarListContainer" class="space-y-4"></div>
+                </div>
+            `;
+            function draw(filter = '') {
+                const list = document.getElementById('userSorovlarListContainer'); if (!list) return;
+                let html = ''; let found = false; const f = filter.toLowerCase();
+                for (let id in sorovnomalar) {
+                    const s = sorovnomalar[id]; if (s.userId !== user.id || !s.korinsin) continue;
+                    const turName = turlar[s.turKey] ? turlar[s.turKey].nomi : "So‘rovnoma";
+                    let searchText = `${s.id} ${turName} ${s.holat} ${s.javob || ''}`; if (s.qiymatlar) for (let mk in s.qiymatlar) { const v = s.qiymatlar[mk]; searchText += ` ${mk} ${typeof v === 'object' ? (v.qiymat || v.nomi || '') : v}`; }
+                    if (f && !searchText.toLowerCase().includes(f)) continue;
+                    found = true;
+                    let qiymatlarHtml = ''; if (s.qiymatlar) for (let mk in s.qiymatlar) qiymatlarHtml += renderFieldItem(mk, s.qiymatlar[mk]);
+                    let javobHtml = s.javob ? `<div class="bg-emerald-50/60 border border-emerald-200 p-4 rounded-2xl space-y-1"><div class="flex items-center gap-2 text-emerald-700 font-bold text-xs uppercase"><i class="fa-regular fa-circle-info mr-1"></i>Javob:</div><p class="text-sm text-emerald-900 whitespace-pre-wrap">${s.javob}</p></div>` : '';
+                    let submittedBy = s.submittedByRole === 'admin' ? `<div class="text-xs text-purple-600 font-bold mb-1"><i class="fa-regular fa-shield-halved mr-1"></i>Admin berdi</div>` : `<div class="text-xs text-blue-600 font-bold mb-1"><i class="fa-regular fa-user mr-1"></i>Foydalanuvchi</div>`;
+                    let actions = '';
+                    if (s.tahrirlashMumkin !== false || s.ochirishMumkin !== false) {
+                        actions = `<div class="flex gap-2 pt-2 border-t justify-end">`;
+                        if (s.tahrirlashMumkin !== false) actions += `<button onclick="openUserEditSorovModal('${id}')" class="bg-blue-600 text-white px-4 py-1.5 rounded-2xl text-xs font-bold hover:bg-blue-700"><i class="fa-regular fa-pen mr-1"></i>Tahrirlash</button>`;
+                        if (s.ochirishMumkin !== false) actions += `<button onclick="userDeleteSorov('${id}')" class="bg-red-600 text-white px-4 py-1.5 rounded-2xl text-xs font-bold hover:bg-red-700"><i class="fa-regular fa-trash mr-1"></i>O'chirish</button>`;
+                        actions += `</div>`;
+                    }
+                    html += `<div class="border p-5 rounded-3xl bg-white shadow-sm space-y-3"><div class="flex justify-between items-center border-b pb-3"><div><span class="text-xs font-bold text-gray-400">ID:</span><span class="font-bold text-emerald-600 text-lg ml-2">${s.id}</span></div><div class="flex items-center gap-1.5 bg-gray-50 px-3 py-1 rounded-2xl border"><span class="text-gray-500 text-xs">Holat:</span><span class="px-3 py-0.5 rounded-full text-xs font-bold" style="${s.holatRangi || 'background:#f3f4f6;color:#1f2937;'}">${s.holat}</span></div></div>${submittedBy}<div><p class="text-sm font-semibold">Turi: <span class="text-emerald-600">${turName}</span></p><p class="text-xs text-gray-400">${new Date(s.sana).toLocaleString()}</p></div><div class="grid grid-cols-1 gap-3">${qiymatlarHtml}</div>${javobHtml}${actions}</div>`;
+                }
+                if (!found) html += `<div class="text-center py-10 text-gray-400">So‘rovnomalar mavjud emas</div>`;
+                list.innerHTML = html;
+            }
+            draw();
+            document.getElementById('userSorovSearch').addEventListener('input', (e) => draw(e.target.value.trim()));
+        }
+
+        window.userDeleteSorov = async function(id) { if (confirm("O'chirilsin?")) { await remove(ref(db, `sorovnomalar/${id}`)); CACHE.sorovnomalar = null; renderSorovnomalarim(document.getElementById('tabContent')); } };
+        window.openUserEditSorovModal = async function(sorovId) {
+            const sorovlar = await getSorovnomalar(); const s = sorovlar[sorovId]; if (!s) return;
+            if (s.tahrirlashMumkin === false) { alert("Tahrirlash ruxsati yo‘q!"); return; }
+            const turlar = await getSorovnomaTurlari(); const maydonlar = turlar[s.turKey]?.maydonlar || {};
+            const modal = document.getElementById('modalContainer');
+            let fields = '';
+            for (let mId in maydonlar) {
+                const m = maydonlar[mId]; const req = m.majburiy !== false; const old = s.qiymatlar && s.qiymatlar[mId] ? s.qiymatlar[mId] : ''; const oldVal = typeof old === 'object' ? (old.qiymat || '') : old;
+                fields += `<div class="space-y-1"><label class="block text-sm font-medium text-gray-700">${m.nomi} ${req ? '<span class="text-red-500">*</span>' : ''}</label>`;
+                if (m.turi === 'matn') fields += `<input type="text" data-fid="${mId}" data-ftype="matn" data-req="${req}" value="${oldVal}" class="edit-sorov-field w-full px-4 py-3 border-2 border-emerald-200 rounded-2xl" ${req ? 'required' : ''}>`;
+                else if (m.turi === 'nomer') fields += `<input type="number" data-fid="${mId}" data-ftype="nomer" data-req="${req}" value="${oldVal}" class="edit-sorov-field w-full px-4 py-3 border-2 border-emerald-200 rounded-2xl" ${req ? 'required' : ''}>`;
+                else if (m.turi === 'sana') fields += `<input type="date" data-fid="${mId}" data-ftype="sana" data-req="${req}" value="${oldVal}" class="edit-sorov-field w-full px-4 py-3 border-2 border-emerald-200 rounded-2xl" ${req ? 'required' : ''}>`;
+                else if (m.turi === 'vaqt') fields += `<input type="time" step="1" data-fid="${mId}" data-ftype="vaqt" data-req="${req}" value="${oldVal}" class="edit-sorov-field w-full px-4 py-3 border-2 border-emerald-200 rounded-2xl" ${req ? 'required' : ''}>`;
+                else if (m.turi === 'tanlov') {
+                    const vars = m.variantlar ? m.variantlar.split(',').map(v => v.trim()).filter(Boolean) : [];
+                    fields += `<select data-fid="${mId}" data-ftype="tanlov" data-req="${req}" class="edit-sorov-field w-full px-4 py-3.5 border-2 border-emerald-200 rounded-2xl bg-white" ${req ? 'required' : ''}><option value="">-- Tanlang --</option>${vars.map(v => `<option value="${v}" ${oldVal === v ? 'selected' : ''}>${v}</option>`).join('')}</select>`;
+                } else if (m.turi === 'rasm_tushish') fields += `<div class="p-3 bg-emerald-50/50 rounded-2xl"><input type="file" accept="image/*" capture="environment" data-fid="${mId}" data-ftype="rasm_tushish" data-req="false" class="edit-sorov-field w-full file-input"></div>`;
+                else if (m.turi === 'galereyadan') fields += `<div class="p-3 bg-teal-50/50 rounded-2xl"><input type="file" accept="image/*" multiple data-fid="${mId}" data-ftype="galereyadan" data-req="false" class="edit-sorov-field w-full file-input"></div>`;
+                else if (m.turi === 'rasm') fields += `<div class="p-3 bg-blue-50/50 rounded-2xl"><input type="file" accept="image/*" multiple data-fid="${mId}" data-ftype="rasm" data-req="false" class="edit-sorov-field w-full file-input"></div>`;
+                else if (m.turi === 'video') fields += `<div class="p-3 bg-rose-50/50 rounded-2xl"><input type="file" accept="video/*" data-fid="${mId}" data-ftype="video" data-req="false" class="edit-sorov-field w-full file-input"></div>`;
+                else fields += `<input type="file" data-fid="${mId}" data-ftype="file" data-req="false" class="edit-sorov-field w-full px-4 py-3 border-2 border-emerald-200 rounded-2xl file-input">`;
+                fields += `</div>`;
+            }
+            modal.innerHTML = `
+                <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto modal-overlay">
+                    <div class="bg-white p-6 md:p-8 rounded-3xl shadow-2xl w-full max-w-lg space-y-4 max-h-[90vh] overflow-y-auto border border-emerald-100">
+                        <div class="flex justify-between items-center border-b pb-3"><h3 class="text-2xl font-bold text-gray-800">Tahrirlash №${s.id}</h3><button onclick="closeModal()" class="text-gray-400 hover:text-gray-700 text-2xl font-bold px-2">&times;</button></div>
+                        <div id="editSorovFormFieldsContainer" class="space-y-4">${fields}</div>
+                        <div class="flex justify-end gap-3 pt-4 border-t"><button onclick="closeModal()" class="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-2xl font-bold text-sm hover:bg-gray-200">Bekor</button><button onclick="saveEditedSorov('${sorovId}')" class="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-2xl font-bold text-sm shadow hover:shadow-lg">Saqlash</button></div>
+                    </div>
+                </div>
+            `;
+        };
+        window.saveEditedSorov = async function(sorovId) {
+            const sorovlar = await getSorovnomalar(); const s = sorovlar[sorovId]; if (!s) return;
+            const inputs = document.querySelectorAll('.edit-sorov-field');
+            let updated = { ...s.qiymatlar };
+            async function readFile(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); }); }
+            for (let inp of inputs) {
+                const fid = inp.dataset.fid, ftype = inp.dataset.ftype, req = inp.dataset.req === 'true';
+                if (['rasm','video','file','rasm_tushish','galereyadan'].includes(ftype)) {
+                    if (inp.files && inp.files.length) {
+                        let files = []; for (let f of inp.files) { try { const b64 = await readFile(f); files.push({ nomi: f.name, url: b64 }); } catch(e) {} }
+                        updated[fid] = { turi: ftype, multiple: files.length > 1 || inp.multiple, files, nomi: files[0]?.nomi || '', url: files[0]?.url || '' };
+                    }
+                } else {
+                    if (req && !inp.value.trim()) { alert("Majburiy maydon!"); inp.focus(); return; }
+                    if (updated[fid] && typeof updated[fid] === 'object') updated[fid].qiymat = inp.value;
+                    else updated[fid] = { turi: ftype, qiymat: inp.value };
+                }
+            }
+            await update(ref(db, `sorovnomalar/${sorovId}`), { qiymatlar: updated });
+            CACHE.sorovnomalar = null; alert("Tahrirlandi!"); closeModal(); renderSorovnomalarim(document.getElementById('tabContent'));
+        };
+
+        // ------------------ YANGILIKLAR ------------------
+        async function renderYangiliklarUser(container) {
+            const yangiliklar = await getYangiliklarCached(true);
+            let html = `<div class="bg-white/70 backdrop-blur-sm p-6 rounded-3xl shadow-sm border border-indigo-100 space-y-4"><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-newspaper text-indigo-500 mr-3"></i>Yangiliklar</h2><div class="space-y-4">`;
+            let found = false;
+            for (let id in yangiliklar) {
+                found = true; const y = yangiliklar[id]; markAsRead(id);
+                let media = ''; if (y.rasmUrl) media += `<div class="mt-2"><img src="${y.rasmUrl}" class="w-full max-h-72 object-contain rounded-2xl border bg-black/5"></div>`;
+                if (y.videoUrl) media += `<div class="mt-2"><video controls class="w-full max-h-72 object-contain rounded-2xl border bg-black"><source src="${y.videoUrl}"></video></div>`;
+                html += `<div class="border p-5 rounded-3xl bg-white shadow-sm space-y-3"><h3 class="font-bold text-xl text-gray-900">${y.sarlavha}</h3><p class="text-gray-700 text-sm whitespace-pre-wrap">${y.matn}</p>${media}<div class="flex justify-between text-xs text-gray-400 pt-3 border-t"><span>Sana: <b>${y.sana || 'Noma\'lum'}</b></span><span>Vaqt: <b>${y.vaqt || 'Noma\'lum'}</b></span></div></div>`;
+            }
+            if (!found) html += `<div class="text-center py-10 text-gray-400">Yangiliklar yo‘q</div>`;
+            html += `</div></div>`;
+            container.innerHTML = html;
+        }
+
+        // ------------------ XABARLAR ------------------
+        async function renderXabarlarUser(container) {
+            const user = await getCurrentUser(); const bolimlar = await getXabarlarCached(true);
+            let html = `<div class="bg-white/70 backdrop-blur-sm p-6 rounded-3xl shadow-sm border border-indigo-100 space-y-6"><div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-message text-indigo-500 mr-3"></i>Xabarlar</h2><p class="text-sm text-gray-500">Sizga yuborilgan xabarlar</p></div><div class="space-y-6">`;
+            let found = false;
+            for (let bKey in bolimlar) {
+                const b = bolimlar[bKey]; const list = b.xabarlar || {}; let xHtml = ''; let has = false;
+                for (let xKey in list) {
+                    const x = list[xKey]; if (x.targetId && x.targetId !== user.id) continue;
+                    has = true; found = true; markAsRead(xKey);
+                    let media = ''; if (x.rasmUrl) media += `<div class="mt-2"><img src="${x.rasmUrl}" class="w-full max-h-60 object-contain rounded-2xl border bg-black/5"></div>`;
+                    if (x.videoUrl) media += `<div class="mt-2"><video controls class="w-full max-h-60 object-contain rounded-2xl border bg-black"><source src="${x.videoUrl}"></video></div>`;
+                    xHtml += `<div class="p-4 rounded-2xl border bg-gray-50 space-y-2"><div class="flex justify-between items-start"><h4 class="font-bold text-indigo-700">${x.nomi}</h4>${x.targetId ? '<span class="bg-purple-100 text-purple-700 text-[10px] px-2 py-0.5 rounded font-bold">Shaxsiy</span>' : ''}</div><p class="text-sm text-gray-700 whitespace-pre-wrap">${x.matn}</p>${media}<span class="text-[10px] text-gray-400 block pt-1 border-t">${x.sana || ''}</span></div>`;
+                }
+                if (has) html += `<div class="border p-5 rounded-3xl bg-white shadow-sm space-y-4"><div class="border-b pb-2"><h3 class="font-bold text-lg text-gray-950 flex items-center gap-2"><i class="fa-regular fa-folder text-indigo-600"></i>${b.nomi}</h3></div><div class="space-y-3">${xHtml}</div></div>`;
+            }
+            if (!found) html += `<div class="text-center py-10 text-gray-400">Xabarlar mavjud emas</div>`;
+            html += `</div></div>`;
+            container.innerHTML = html;
+        }
+
+        // ------------------ ADMIN: ARIZALAR ------------------
+        async function renderAdminArizalar(container) {
+            const arizalar = await getArizalarCached(true); const turlar = await getArizaTurlariCached(true); const holatlar = await getHolatlarCached(true);
+            container.innerHTML = `
+                <div class="bg-white/70 backdrop-blur-sm p-6 rounded-3xl shadow-sm border border-indigo-100 space-y-4">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3"><div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-shield text-purple-500 mr-3"></i>Arizalar boshqaruvi</h2><p class="text-sm text-gray-500">Barcha arizalarni boshqarish</p></div><div class="w-full md:w-72"><input type="text" id="adminArizaSearch" placeholder="Qidirish..." class="w-full px-4 py-3 border-2 border-indigo-200 rounded-2xl focus:ring-4 focus:ring-indigo-300 bg-white/80"></div></div>
+                    <div id="adminArizalarListContainer" class="space-y-4"></div>
+                </div>
+            `;
+            function draw(filter = '') {
+                const list = document.getElementById('adminArizalarListContainer'); if (!list) return;
+                let html = ''; let found = false; const f = filter.toLowerCase();
+                for (let id in arizalar) {
+                    const a = arizalar[id]; if (!a.korinsin) continue;
+                    const turName = turlar[a.turKey] ? turlar[a.turKey].nomi : "Ariza";
+                    let searchText = `${a.id} ${a.userId} ${turName} ${a.holat} ${a.javob || ''}`; if (a.qiymatlar) for (let mk in a.qiymatlar) { const v = a.qiymatlar[mk]; searchText += ` ${mk} ${typeof v === 'object' ? (v.qiymat || v.nomi || '') : v}`; }
+                    if (f && !searchText.toLowerCase().includes(f)) continue;
+                    found = true;
+                    let qiymatlarHtml = ''; if (a.qiymatlar) for (let mk in a.qiymatlar) qiymatlarHtml += renderFieldItem(mk, a.qiymatlar[mk]);
+                    let holatOptions = ''; for (let hKey in holatlar) { const h = holatlar[hKey]; holatOptions += `<option value="${h.yozuv}" ${a.holat === h.yozuv ? 'selected' : ''}>${h.yozuv}</option>`; }
+                    html += `<div class="border p-5 rounded-3xl bg-white shadow-sm space-y-4"><div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b pb-3"><div><span class="text-xs font-bold text-gray-400">ID:</span><span class="font-bold text-indigo-600 text-lg">${a.id}</span><span class="ml-3 text-xs bg-gray-100 px-3 py-1 rounded-2xl font-semibold">ID: ${a.userId} (${a.userRole})</span></div><div class="flex items-center gap-2"><select onchange="adminUpdateHolat('${id}', this.value)" class="border-2 border-indigo-200 px-3 py-1.5 rounded-2xl text-xs font-bold bg-white">${holatOptions}</select><button onclick="adminDeleteAriza('${id}')" class="bg-red-50 text-red-600 px-4 py-1.5 rounded-2xl text-xs font-bold hover:bg-red-100"><i class="fa-regular fa-trash mr-1"></i>O'chirish</button></div></div><div><p class="text-sm font-semibold">Turi: <span class="text-indigo-600">${turName}</span></p><p class="text-xs text-gray-400">${new Date(a.sana).toLocaleString()}</p></div><div class="grid grid-cols-1 gap-3">${qiymatlarHtml}</div><div class="pt-3 border-t space-y-2"><label class="block text-xs font-bold text-gray-700 uppercase">Javob:</label><textarea id="adminJavobInput_${id}" rows="2" class="w-full border-2 border-indigo-200 px-4 py-3 rounded-2xl text-sm bg-gray-50">${a.javob || ''}</textarea><button onclick="saveAdminJavob('${id}')" class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-5 py-2 rounded-2xl text-xs font-bold shadow hover:shadow-lg">Saqlash</button></div></div>`;
+                }
+                if (!found) html += `<div class="text-center py-10 text-gray-400">Arizalar yo‘q</div>`;
+                list.innerHTML = html;
+            }
+            draw();
+            document.getElementById('adminArizaSearch').addEventListener('input', (e) => draw(e.target.value.trim()));
+        }
+        window.adminUpdateHolat = async function(id, val) {
+            const hSnap = await get(ref(db, 'holatlar')); const holatlar = hSnap.exists() ? hSnap.val() : {};
+            let rang = 'background:#f3f4f6;color:#1f2937;', tahrir = true, ochirish = true;
+            for (let hKey in holatlar) { if (holatlar[hKey].yozuv === val) { rang = holatlar[hKey].rang; tahrir = holatlar[hKey].tahrirlashRuxsati !== false; ochirish = holatlar[hKey].ochirishRuxsati !== false; break; } }
+            await update(ref(db, `arizalar/${id}`), { holat: val, holatRangi: rang, tahrirlashMumkin: tahrir, ochirishMumkin: ochirish });
+            CACHE.arizalar = null;
+        };
+        window.saveAdminJavob = async function(id) {
+            const val = document.getElementById(`adminJavobInput_${id}`).value.trim();
+            await update(ref(db, `arizalar/${id}`), { javob: val });
+            CACHE.arizalar = null; alert("Javob saqlandi!");
+        };
+        window.adminDeleteAriza = async function(id) { if (confirm("O'chirilsin?")) { await remove(ref(db, `arizalar/${id}`)); CACHE.arizalar = null; renderAdminArizalar(document.getElementById('tabContent')); } };
+
+        // ------------------ ADMIN: SO'ROVNOMALAR ------------------
+        async function renderAdminSorovnomalar(container) {
+            const sorovlar = await getSorovnomalar(true); const turlar = await getSorovnomaTurlari(true); const holatlar = await getHolatlarCached(true);
+            container.innerHTML = `
+                <div class="bg-white/70 backdrop-blur-sm p-6 rounded-3xl shadow-sm border border-emerald-100 space-y-4">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3"><div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-rectangle-list text-emerald-500 mr-3"></i>So‘rovnomalar boshqaruvi</h2><p class="text-sm text-gray-500">Barcha so‘rovnomalarni boshqarish</p></div><div class="w-full md:w-72"><input type="text" id="adminSorovSearch" placeholder="Qidirish..." class="w-full px-4 py-3 border-2 border-emerald-200 rounded-2xl focus:ring-4 focus:ring-emerald-300 bg-white/80"></div></div>
+                    <div id="adminSorovlarListContainer" class="space-y-4"></div>
+                </div>
+            `;
+            function draw(filter = '') {
+                const list = document.getElementById('adminSorovlarListContainer'); if (!list) return;
+                let html = ''; let found = false; const f = filter.toLowerCase();
+                for (let id in sorovlar) {
+                    const s = sorovlar[id]; if (!s.korinsin) continue;
+                    const turName = turlar[s.turKey] ? turlar[s.turKey].nomi : "So‘rovnoma";
+                    let searchText = `${s.id} ${s.userId} ${turName} ${s.holat} ${s.javob || ''}`; if (s.qiymatlar) for (let mk in s.qiymatlar) { const v = s.qiymatlar[mk]; searchText += ` ${mk} ${typeof v === 'object' ? (v.qiymat || v.nomi || '') : v}`; }
+                    if (f && !searchText.toLowerCase().includes(f)) continue;
+                    found = true;
+                    let qiymatlarHtml = ''; if (s.qiymatlar) for (let mk in s.qiymatlar) qiymatlarHtml += renderFieldItem(mk, s.qiymatlar[mk]);
+                    let holatOptions = ''; for (let hKey in holatlar) { const h = holatlar[hKey]; holatOptions += `<option value="${h.yozuv}" ${s.holat === h.yozuv ? 'selected' : ''}>${h.yozuv}</option>`; }
+                    html += `<div class="border p-5 rounded-3xl bg-white shadow-sm space-y-4"><div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b pb-3"><div><span class="text-xs font-bold text-gray-400">ID:</span><span class="font-bold text-emerald-600 text-lg">${s.id}</span><span class="ml-3 text-xs bg-gray-100 px-3 py-1 rounded-2xl font-semibold">ID: ${s.userId} (${s.userRole})</span></div><div class="flex items-center gap-2"><select onchange="adminUpdateSorovHolat('${id}', this.value)" class="border-2 border-emerald-200 px-3 py-1.5 rounded-2xl text-xs font-bold bg-white">${holatOptions}</select><button onclick="adminDeleteSorov('${id}')" class="bg-red-50 text-red-600 px-4 py-1.5 rounded-2xl text-xs font-bold hover:bg-red-100"><i class="fa-regular fa-trash mr-1"></i>O'chirish</button></div></div><div><p class="text-sm font-semibold">Turi: <span class="text-emerald-600">${turName}</span></p><p class="text-xs text-gray-400">${new Date(s.sana).toLocaleString()}</p></div><div class="grid grid-cols-1 gap-3">${qiymatlarHtml}</div><div class="pt-3 border-t space-y-2"><label class="block text-xs font-bold text-gray-700 uppercase">Javob:</label><textarea id="adminSorovJavobInput_${id}" rows="2" class="w-full border-2 border-emerald-200 px-4 py-3 rounded-2xl text-sm bg-gray-50">${s.javob || ''}</textarea><button onclick="saveAdminSorovJavob('${id}')" class="bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-5 py-2 rounded-2xl text-xs font-bold shadow hover:shadow-lg">Saqlash</button></div></div>`;
+                }
+                if (!found) html += `<div class="text-center py-10 text-gray-400">So‘rovnomalar yo‘q</div>`;
+                list.innerHTML = html;
+            }
+            draw();
+            document.getElementById('adminSorovSearch').addEventListener('input', (e) => draw(e.target.value.trim()));
+        }
+        window.adminUpdateSorovHolat = async function(id, val) {
+            const hSnap = await get(ref(db, 'holatlar')); const holatlar = hSnap.exists() ? hSnap.val() : {};
+            let rang = 'background:#f3f4f6;color:#1f2937;', tahrir = true, ochirish = true;
+            for (let hKey in holatlar) { if (holatlar[hKey].yozuv === val) { rang = holatlar[hKey].rang; tahrir = holatlar[hKey].tahrirlashRuxsati !== false; ochirish = holatlar[hKey].ochirishRuxsati !== false; break; } }
+            await update(ref(db, `sorovnomalar/${id}`), { holat: val, holatRangi: rang, tahrirlashMumkin: tahrir, ochirishMumkin: ochirish });
+            CACHE.sorovnomalar = null;
+        };
+        window.saveAdminSorovJavob = async function(id) {
+            const val = document.getElementById(`adminSorovJavobInput_${id}`).value.trim();
+            await update(ref(db, `sorovnomalar/${id}`), { javob: val });
+            CACHE.sorovnomalar = null; alert("Javob saqlandi!");
+        };
+        window.adminDeleteSorov = async function(id) { if (confirm("O'chirilsin?")) { await remove(ref(db, `sorovnomalar/${id}`)); CACHE.sorovnomalar = null; renderAdminSorovnomalar(document.getElementById('tabContent')); } };
+
+        // ------------------ ADMIN: ARIZA TURLARI ------------------
+        async function renderAdminTurlar(container) {
+            const turlar = await getArizaTurlariCached(true);
+            let html = `
+                <div class="bg-white/70 backdrop-blur-sm p-6 rounded-3xl shadow-sm border border-indigo-100 space-y-6">
+                    <div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-gear text-purple-500 mr-3"></i>Ariza turlari</h2><p class="text-sm text-gray-500">Yangi tur qo'shish, maydonlar boshqaruvi</p></div>
+                    <div class="bg-gray-50/80 p-4 rounded-3xl border-2 border-dashed border-indigo-200 space-y-3"><h4 class="text-xs font-bold text-gray-700 uppercase">Yangi tur</h4><div class="grid grid-cols-1 md:grid-cols-2 gap-3"><input type="text" id="yangiArizaTuriNomi" placeholder="Nomi" class="border-2 border-indigo-200 px-4 py-3 rounded-2xl bg-white"><input type="number" id="yangiArizaTuriLimit" placeholder="Limit (0=cheksiz)" class="border-2 border-indigo-200 px-4 py-3 rounded-2xl bg-white"></div><button id="addNewArizaTurBtn" class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-2.5 rounded-2xl font-bold text-xs shadow hover:shadow-lg">Qo'shish</button></div>
+                    <div id="adminTurlarListContainer" class="space-y-4"></div>
+                </div>
+            `;
+            container.innerHTML = html;
+            loadAdminTurlarList(turlar);
+            document.getElementById('addNewArizaTurBtn').addEventListener('click', async () => {
+                const nomi = document.getElementById('yangiArizaTuriNomi').value.trim(); const limit = document.getElementById('yangiArizaTuriLimit').value.trim();
+                if (!nomi) { alert("Nomi kiriting!"); return; }
+                const key = 'tur_' + Math.floor(1000 + Math.random() * 9000);
+                await set(ref(db, `arizaTurlari/${key}`), { nomi, maxLimit: limit || '0', maydonlar: {} });
+                CACHE.arizaTurlari = null; renderAdminTurlar(container);
+            });
+        }
+        async function loadAdminTurlarList(turlar) {
+            const container = document.getElementById('adminTurlarListContainer'); if (!container) return;
+            let html = '';
+            for (let tKey in turlar) {
+                const t = turlar[tKey]; const maydonlar = t.maydonlar || {};
+                let mHtml = '';
+                for (let mId in maydonlar) {
+                    const m = maydonlar[mId];
+                    mHtml += `<div class="bg-white p-3 rounded-2xl border flex justify-between items-center text-xs"><div><span class="font-bold">${m.nomi}</span><span class="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full ml-2">${m.turi}</span>${m.majburiy === false ? '<span class="text-gray-400 ml-2">(ixtiyoriy)</span>' : '<span class="text-red-500 ml-2">*</span>'}</div><div class="flex gap-1"><button onclick="openEditMaydonModal('${tKey}','${mId}')" class="text-blue-600 bg-blue-50 px-3 py-1 rounded-2xl font-bold text-xs"><i class="fa-regular fa-pen mr-1"></i>Tahrirlash</button><button onclick="deleteMaydon('${tKey}','${mId}')" class="text-red-500 bg-red-50 px-3 py-1 rounded-2xl font-bold text-xs"><i class="fa-regular fa-trash"></i></button></div></div>`;
+                }
+                html += `<div class="border p-5 rounded-3xl bg-gray-50/60 space-y-4"><div class="flex justify-between items-center border-b pb-3"><div><h3 class="font-bold text-lg text-indigo-700">${t.nomi}</h3><p class="text-xs text-gray-500">Limit: <b>${t.maxLimit && t.maxLimit !== '0' ? t.maxLimit + ' ta' : 'Cheksiz'}</b></p></div><div class="flex gap-2"><button onclick="openEditArizaTurModal('${tKey}','${t.nomi}','${t.maxLimit || 0}')" class="bg-blue-50 text-blue-600 px-4 py-1.5 rounded-2xl text-xs font-bold border border-blue-200">Tahrirlash</button><button onclick="deleteArizaTur('${tKey}')" class="bg-red-50 text-red-600 px-4 py-1.5 rounded-2xl text-xs font-bold border border-red-200">O'chirish</button></div></div><div class="space-y-2"><h5 class="text-xs font-bold text-gray-700 uppercase">Maydonlar:</h5>${mHtml || '<p class="text-xs text-gray-400">Yo‘q</p>'}</div><div class="bg-white p-4 rounded-3xl border space-y-3"><h5 class="text-xs font-bold text-gray-700 uppercase">Yangi maydon</h5><div class="grid grid-cols-1 md:grid-cols-3 gap-2"><input type="text" id="maydonNomi_${tKey}" placeholder="Nomi" class="border-2 border-indigo-200 px-3 py-2.5 rounded-2xl text-xs bg-white"><select id="maydonTuri_${tKey}" class="border-2 border-indigo-200 px-3 py-2.5 rounded-2xl text-xs bg-white"><option value="matn">Matn</option><option value="nomer">Raqam</option><option value="sana">Sana</option><option value="vaqt">Vaqt</option><option value="tanlov">Tanlov</option><option value="rasm_tushish">Kamera</option><option value="galereyadan">Galereya</option><option value="rasm">Rasm</option><option value="video">Video</option><option value="file">Fayl</option></select><input type="text" id="maydonVariant_${tKey}" placeholder="Variantlar (vergul bilan)" class="border-2 border-indigo-200 px-3 py-2.5 rounded-2xl text-xs bg-white"></div><div class="flex justify-between items-center"><label class="flex items-center gap-2 text-xs font-medium"><input type="checkbox" id="maydonMajburiy_${tKey}" checked> Majburiy</label><button onclick="addMaydonToTur('${tKey}')" class="bg-slate-800 text-white px-5 py-2 rounded-2xl text-xs font-bold">Qo'shish</button></div></div></div>`;
+            }
+            container.innerHTML = html || '<p class="text-gray-400">Turlar yo‘q</p>';
+        }
+        window.openEditArizaTurModal = async function(tKey, eskiN, eskiL) {
+            const n = prompt("Nomi:", eskiN); if (!n) return; const l = prompt("Limit:", eskiL);
+            await update(ref(db, `arizaTurlari/${tKey}`), { nomi: n.trim(), maxLimit: l !== null ? l.trim() : '0' });
+            CACHE.arizaTurlari = null; renderAdminTurlar(document.getElementById('tabContent'));
+        };
+        window.deleteArizaTur = async function(tKey) { if (confirm("O'chirilsin?")) { await remove(ref(db, `arizaTurlari/${tKey}`)); CACHE.arizaTurlari = null; renderAdminTurlar(document.getElementById('tabContent')); } };
+        window.addMaydonToTur = async function(tKey) {
+            const nomi = document.getElementById(`maydonNomi_${tKey}`).value.trim(); const turi = document.getElementById(`maydonTuri_${tKey}`).value; const variant = document.getElementById(`maydonVariant_${tKey}`).value.trim(); const majburiy = document.getElementById(`maydonMajburiy_${tKey}`).checked;
+            if (!nomi) { alert("Nomi kiriting!"); return; }
+            const mId = 'm_' + Math.floor(1000 + Math.random() * 9000);
+            await set(ref(db, `arizaTurlari/${tKey}/maydonlar/${mId}`), { nomi, turi, variantlar: variant, majburiy });
+            CACHE.arizaTurlari = null; renderAdminTurlar(document.getElementById('tabContent'));
+        };
+        window.openEditMaydonModal = async function(tKey, mId) {
+            const turlar = await getArizaTurlariCached(); const m = turlar[tKey]?.maydonlar?.[mId]; if (!m) return;
+            const modal = document.getElementById('modalContainer');
+            modal.innerHTML = `
+                <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 modal-overlay">
+                    <div class="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-md space-y-4 border border-indigo-100">
+                        <div class="flex justify-between items-center border-b pb-3"><h3 class="text-xl font-bold">Tahrirlash</h3><button onclick="closeModal()" class="text-2xl font-bold">&times;</button></div>
+                        <div><label class="text-xs font-medium">Nomi</label><input type="text" id="editMaydonNomi" value="${m.nomi || ''}" class="w-full border-2 border-indigo-200 px-4 py-3 rounded-2xl"></div>
+                        <div><label class="text-xs font-medium">Turi</label><select id="editMaydonTuri" class="w-full border-2 border-indigo-200 px-4 py-3 rounded-2xl bg-white">${['matn','nomer','sana','vaqt','tanlov','rasm_tushish','galereyadan','rasm','video','file'].map(t => `<option value="${t}" ${m.turi === t ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+                        <div><label class="text-xs font-medium">Variantlar</label><input type="text" id="editMaydonVariant" value="${m.variantlar || ''}" class="w-full border-2 border-indigo-200 px-4 py-3 rounded-2xl"></div>
+                        <div><label class="flex items-center gap-2 text-xs font-medium"><input type="checkbox" id="editMaydonMajburiy" ${m.majburiy !== false ? 'checked' : ''}> Majburiy</label></div>
+                        <div class="flex justify-end gap-2 pt-3 border-t"><button onclick="closeModal()" class="px-5 py-2.5 bg-gray-100 rounded-2xl font-bold text-sm">Bekor</button><button onclick="saveEditedMaydon('${tKey}','${mId}')" class="px-6 py-2.5 bg-indigo-600 text-white rounded-2xl font-bold text-sm shadow">Saqlash</button></div>
+                    </div>
+                </div>
+            `;
+        };
+        window.saveEditedMaydon = async function(tKey, mId) {
+            const nomi = document.getElementById('editMaydonNomi').value.trim(); const turi = document.getElementById('editMaydonTuri').value; const variant = document.getElementById('editMaydonVariant').value.trim(); const majburiy = document.getElementById('editMaydonMajburiy').checked;
+            if (!nomi) { alert("Nomi kiriting!"); return; }
+            await update(ref(db, `arizaTurlari/${tKey}/maydonlar/${mId}`), { nomi, turi, variantlar: variant, majburiy });
+            CACHE.arizaTurlari = null; closeModal(); renderAdminTurlar(document.getElementById('tabContent'));
+        };
+        window.deleteMaydon = async function(tKey, mId) { if (confirm("O'chirilsin?")) { await remove(ref(db, `arizaTurlari/${tKey}/maydonlar/${mId}`)); CACHE.arizaTurlari = null; renderAdminTurlar(document.getElementById('tabContent')); } };
+
+        // ------------------ ADMIN: SO'ROVNOMA TURLARI ------------------
+        async function renderAdminSorovnomaTurlar(container) {
+            const turlar = await getSorovnomaTurlari(true);
+            let html = `
+                <div class="bg-white/70 backdrop-blur-sm p-6 rounded-3xl shadow-sm border border-emerald-100 space-y-6">
+                    <div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-list-check text-emerald-500 mr-3"></i>So‘rovnoma turlari</h2><p class="text-sm text-gray-500">Yangi tur qo'shish, maydonlar boshqaruvi</p></div>
+                    <div class="bg-gray-50/80 p-4 rounded-3xl border-2 border-dashed border-emerald-200 space-y-3"><h4 class="text-xs font-bold text-gray-700 uppercase">Yangi tur</h4><div class="grid grid-cols-1 md:grid-cols-2 gap-3"><input type="text" id="yangiSorovTuriNomi" placeholder="Nomi" class="border-2 border-emerald-200 px-4 py-3 rounded-2xl bg-white"><input type="number" id="yangiSorovTuriLimit" placeholder="Limit (0=cheksiz)" class="border-2 border-emerald-200 px-4 py-3 rounded-2xl bg-white"></div><button id="addNewSorovTurBtn" class="bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-6 py-2.5 rounded-2xl font-bold text-xs shadow hover:shadow-lg">Qo'shish</button></div>
+                    <div id="adminSorovTurlarListContainer" class="space-y-4"></div>
+                </div>
+            `;
+            container.innerHTML = html;
+            loadAdminSorovTurlarList(turlar);
+            document.getElementById('addNewSorovTurBtn').addEventListener('click', async () => {
+                const nomi = document.getElementById('yangiSorovTuriNomi').value.trim(); const limit = document.getElementById('yangiSorovTuriLimit').value.trim();
+                if (!nomi) { alert("Nomi kiriting!"); return; }
+                const key = 'stur_' + Math.floor(1000 + Math.random() * 9000);
+                await set(ref(db, `sorovnomaTurlari/${key}`), { nomi, maxLimit: limit || '0', maydonlar: {} });
+                CACHE.sorovnomaTurlari = null; renderAdminSorovnomaTurlar(container);
+            });
+        }
+        async function loadAdminSorovTurlarList(turlar) {
+            const container = document.getElementById('adminSorovTurlarListContainer'); if (!container) return;
+            let html = '';
+            for (let tKey in turlar) {
+                const t = turlar[tKey]; const maydonlar = t.maydonlar || {};
+                let mHtml = '';
+                for (let mId in maydonlar) {
+                    const m = maydonlar[mId];
+                    mHtml += `<div class="bg-white p-3 rounded-2xl border flex justify-between items-center text-xs"><div><span class="font-bold">${m.nomi}</span><span class="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full ml-2">${m.turi}</span>${m.majburiy === false ? '<span class="text-gray-400 ml-2">(ixtiyoriy)</span>' : '<span class="text-red-500 ml-2">*</span>'}</div><div class="flex gap-1"><button onclick="openEditSorovMaydonModal('${tKey}','${mId}')" class="text-blue-600 bg-blue-50 px-3 py-1 rounded-2xl font-bold text-xs"><i class="fa-regular fa-pen mr-1"></i>Tahrirlash</button><button onclick="deleteSorovMaydon('${tKey}','${mId}')" class="text-red-500 bg-red-50 px-3 py-1 rounded-2xl font-bold text-xs"><i class="fa-regular fa-trash"></i></button></div></div>`;
+                }
+                html += `<div class="border p-5 rounded-3xl bg-gray-50/60 space-y-4"><div class="flex justify-between items-center border-b pb-3"><div><h3 class="font-bold text-lg text-emerald-700">${t.nomi}</h3><p class="text-xs text-gray-500">Limit: <b>${t.maxLimit && t.maxLimit !== '0' ? t.maxLimit + ' ta' : 'Cheksiz'}</b></p></div><div class="flex gap-2"><button onclick="openEditSorovTurModal('${tKey}','${t.nomi}','${t.maxLimit || 0}')" class="bg-blue-50 text-blue-600 px-4 py-1.5 rounded-2xl text-xs font-bold border border-blue-200">Tahrirlash</button><button onclick="deleteSorovTur('${tKey}')" class="bg-red-50 text-red-600 px-4 py-1.5 rounded-2xl text-xs font-bold border border-red-200">O'chirish</button></div></div><div class="space-y-2"><h5 class="text-xs font-bold text-gray-700 uppercase">Maydonlar:</h5>${mHtml || '<p class="text-xs text-gray-400">Yo‘q</p>'}</div><div class="bg-white p-4 rounded-3xl border space-y-3"><h5 class="text-xs font-bold text-gray-700 uppercase">Yangi maydon</h5><div class="grid grid-cols-1 md:grid-cols-3 gap-2"><input type="text" id="sorovMaydonNomi_${tKey}" placeholder="Nomi" class="border-2 border-emerald-200 px-3 py-2.5 rounded-2xl text-xs bg-white"><select id="sorovMaydonTuri_${tKey}" class="border-2 border-emerald-200 px-3 py-2.5 rounded-2xl text-xs bg-white"><option value="matn">Matn</option><option value="nomer">Raqam</option><option value="sana">Sana</option><option value="vaqt">Vaqt</option><option value="tanlov">Tanlov</option><option value="rasm_tushish">Kamera</option><option value="galereyadan">Galereya</option><option value="rasm">Rasm</option><option value="video">Video</option><option value="file">Fayl</option></select><input type="text" id="sorovMaydonVariant_${tKey}" placeholder="Variantlar (vergul bilan)" class="border-2 border-emerald-200 px-3 py-2.5 rounded-2xl text-xs bg-white"></div><div class="flex justify-between items-center"><label class="flex items-center gap-2 text-xs font-medium"><input type="checkbox" id="sorovMaydonMajburiy_${tKey}" checked> Majburiy</label><button onclick="addSorovMaydonToTur('${tKey}')" class="bg-slate-800 text-white px-5 py-2 rounded-2xl text-xs font-bold">Qo'shish</button></div></div></div>`;
+            }
+            container.innerHTML = html || '<p class="text-gray-400">Turlar yo‘q</p>';
+        }
+        window.openEditSorovTurModal = async function(tKey, eskiN, eskiL) {
+            const n = prompt("Nomi:", eskiN); if (!n) return; const l = prompt("Limit:", eskiL);
+            await update(ref(db, `sorovnomaTurlari/${tKey}`), { nomi: n.trim(), maxLimit: l !== null ? l.trim() : '0' });
+            CACHE.sorovnomaTurlari = null; renderAdminSorovnomaTurlar(document.getElementById('tabContent'));
+        };
+        window.deleteSorovTur = async function(tKey) { if (confirm("O'chirilsin?")) { await remove(ref(db, `sorovnomaTurlari/${tKey}`)); CACHE.sorovnomaTurlari = null; renderAdminSorovnomaTurlar(document.getElementById('tabContent')); } };
+        window.addSorovMaydonToTur = async function(tKey) {
+            const nomi = document.getElementById(`sorovMaydonNomi_${tKey}`).value.trim(); const turi = document.getElementById(`sorovMaydonTuri_${tKey}`).value; const variant = document.getElementById(`sorovMaydonVariant_${tKey}`).value.trim(); const majburiy = document.getElementById(`sorovMaydonMajburiy_${tKey}`).checked;
+            if (!nomi) { alert("Nomi kiriting!"); return; }
+            const mId = 'sm_' + Math.floor(1000 + Math.random() * 9000);
+            await set(ref(db, `sorovnomaTurlari/${tKey}/maydonlar/${mId}`), { nomi, turi, variantlar: variant, majburiy });
+            CACHE.sorovnomaTurlari = null; renderAdminSorovnomaTurlar(document.getElementById('tabContent'));
+        };
+        window.openEditSorovMaydonModal = async function(tKey, mId) {
+            const turlar = await getSorovnomaTurlari(); const m = turlar[tKey]?.maydonlar?.[mId]; if (!m) return;
+            const modal = document.getElementById('modalContainer');
+            modal.innerHTML = `
+                <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 modal-overlay">
+                    <div class="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-md space-y-4 border border-emerald-100">
+                        <div class="flex justify-between items-center border-b pb-3"><h3 class="text-xl font-bold">Tahrirlash</h3><button onclick="closeModal()" class="text-2xl font-bold">&times;</button></div>
+                        <div><label class="text-xs font-medium">Nomi</label><input type="text" id="editSorovMaydonNomi" value="${m.nomi || ''}" class="w-full border-2 border-emerald-200 px-4 py-3 rounded-2xl"></div>
+                        <div><label class="text-xs font-medium">Turi</label><select id="editSorovMaydonTuri" class="w-full border-2 border-emerald-200 px-4 py-3 rounded-2xl bg-white">${['matn','nomer','sana','vaqt','tanlov','rasm_tushish','galereyadan','rasm','video','file'].map(t => `<option value="${t}" ${m.turi === t ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+                        <div><label class="text-xs font-medium">Variantlar</label><input type="text" id="editSorovMaydonVariant" value="${m.variantlar || ''}" class="w-full border-2 border-emerald-200 px-4 py-3 rounded-2xl"></div>
+                        <div><label class="flex items-center gap-2 text-xs font-medium"><input type="checkbox" id="editSorovMaydonMajburiy" ${m.majburiy !== false ? 'checked' : ''}> Majburiy</label></div>
+                        <div class="flex justify-end gap-2 pt-3 border-t"><button onclick="closeModal()" class="px-5 py-2.5 bg-gray-100 rounded-2xl font-bold text-sm">Bekor</button><button onclick="saveEditedSorovMaydon('${tKey}','${mId}')" class="px-6 py-2.5 bg-emerald-600 text-white rounded-2xl font-bold text-sm shadow">Saqlash</button></div>
+                    </div>
+                </div>
+            `;
+        };
+        window.saveEditedSorovMaydon = async function(tKey, mId) {
+            const nomi = document.getElementById('editSorovMaydonNomi').value.trim(); const turi = document.getElementById('editSorovMaydonTuri').value; const variant = document.getElementById('editSorovMaydonVariant').value.trim(); const majburiy = document.getElementById('editSorovMaydonMajburiy').checked;
+            if (!nomi) { alert("Nomi kiriting!"); return; }
+            await update(ref(db, `sorovnomaTurlari/${tKey}/maydonlar/${mId}`), { nomi, turi, variantlar: variant, majburiy });
+            CACHE.sorovnomaTurlari = null; closeModal(); renderAdminSorovnomaTurlar(document.getElementById('tabContent'));
+        };
+        window.deleteSorovMaydon = async function(tKey, mId) { if (confirm("O'chirilsin?")) { await remove(ref(db, `sorovnomaTurlari/${tKey}/maydonlar/${mId}`)); CACHE.sorovnomaTurlari = null; renderAdminSorovnomaTurlar(document.getElementById('tabContent')); } };
+
+        // ------------------ ADMIN: STATISTIKA ------------------
+        async function renderAdminStatistika(container) {
+            const arizalar = await getArizalarCached(true); const turlar = await getArizaTurlariCached(true); const usersSnap = await get(ref(db, 'users')); const users = usersSnap.exists() ? usersSnap.val() : {};
+            const sorovlar = await getSorovnomalar(true); const sorovTurlar = await getSorovnomaTurlari(true);
+            let totalA = 0, turCount = {}, holatCount = {};
+            for (let id in arizalar) { const a = arizalar[id]; if (a.korinsin) { totalA++; turCount[a.turKey] = (turCount[a.turKey] || 0) + 1; holatCount[a.holat] = (holatCount[a.holat] || 0) + 1; } }
+            let totalS = 0, sTurCount = {}, sHolatCount = {};
+            for (let id in sorovlar) { const s = sorovlar[id]; if (s.korinsin) { totalS++; sTurCount[s.turKey] = (sTurCount[s.turKey] || 0) + 1; sHolatCount[s.holat] = (sHolatCount[s.holat] || 0) + 1; } }
+            let turHtml = '', sTurHtml = '', holatHtml = '', sHolatHtml = '';
+            for (let tKey in turlar) { const name = turlar[tKey].nomi; turHtml += `<div class="bg-gray-50 p-3 rounded-2xl border flex justify-between"><span class="font-bold">${name}</span><span class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold">${turCount[tKey] || 0}</span></div>`; }
+            for (let tKey in sorovTurlar) { const name = sorovTurlar[tKey].nomi; sTurHtml += `<div class="bg-gray-50 p-3 rounded-2xl border flex justify-between"><span class="font-bold">${name}</span><span class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold">${sTurCount[tKey] || 0}</span></div>`; }
+            for (let h in holatCount) { holatHtml += `<div class="bg-gray-50 p-3 rounded-2xl border flex justify-between"><span class="font-bold">${h}</span><span class="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-xs font-bold">${holatCount[h]}</span></div>`; }
+            for (let h in sHolatCount) { sHolatHtml += `<div class="bg-gray-50 p-3 rounded-2xl border flex justify-between"><span class="font-bold">${h}</span><span class="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-xs font-bold">${sHolatCount[h]}</span></div>`; }
+            container.innerHTML = `
+                <div class="bg-white/70 backdrop-blur-sm p-6 rounded-3xl shadow-sm border border-indigo-100 space-y-6">
+                    <div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-chart-pie text-purple-500 mr-3"></i>Statistika</h2><p class="text-sm text-gray-500">Tizim ko‘rsatkichlari</p></div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4"><div class="bg-indigo-600 text-white p-6 rounded-3xl shadow space-y-1"><span class="text-xs uppercase font-bold">Jami arizalar</span><h3 class="text-3xl font-extrabold">${totalA}</h3></div><div class="bg-emerald-600 text-white p-6 rounded-3xl shadow space-y-1"><span class="text-xs uppercase font-bold">Jami so‘rovnomalar</span><h3 class="text-3xl font-extrabold">${totalS}</h3></div><div class="bg-purple-600 text-white p-6 rounded-3xl shadow space-y-1"><span class="text-xs uppercase font-bold">Foydalanuvchilar</span><h3 class="text-3xl font-extrabold">${Object.keys(users).length}</h3></div></div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div class="space-y-2"><h3 class="font-bold text-gray-900">Ariza turlari</h3>${turHtml || '<p class="text-xs text-gray-400">Yo‘q</p>'}</div><div class="space-y-2"><h3 class="font-bold text-gray-900">So‘rovnoma turlari</h3>${sTurHtml || '<p class="text-xs text-gray-400">Yo‘q</p>'}</div><div class="space-y-2"><h3 class="font-bold text-gray-900">Ariza holatlari</h3>${holatHtml || '<p class="text-xs text-gray-400">Yo‘q</p>'}</div><div class="space-y-2"><h3 class="font-bold text-gray-900">So‘rovnoma holatlari</h3>${sHolatHtml || '<p class="text-xs text-gray-400">Yo‘q</p>'}</div></div>
+                </div>
+            `;
+        }
+
+        // ------------------ ADMIN: HOLATLAR ------------------
+        async function renderAdminHolatlar(container) {
+            const holatlar = await getHolatlarCached(true);
+            container.innerHTML = `
+                <div class="bg-white/70 backdrop-blur-sm p-6 rounded-3xl shadow-sm border border-indigo-100 space-y-6">
+                    <div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-palette text-purple-500 mr-3"></i>Holatlar</h2><p class="text-sm text-gray-500">Ariza / so‘rovnoma holatlarini boshqarish</p></div>
+                    <div class="bg-gray-50/80 p-4 rounded-3xl border-2 border-dashed border-indigo-200 space-y-3"><h4 class="text-xs font-bold text-gray-700 uppercase">Yangi holat</h4><div class="grid grid-cols-1 md:grid-cols-3 gap-2"><input type="text" id="yangiHolatYozuv" placeholder="Nomi" class="border-2 border-indigo-200 px-3 py-2.5 rounded-2xl bg-white"><div class="flex items-center gap-2 border-2 border-indigo-200 px-3 py-2 rounded-2xl bg-white"><label class="text-xs font-semibold">Rang:</label><input type="color" id="yangiHolatColor" value="#10b981" class="w-10 h-8 cursor-pointer border-0 bg-transparent"></div><div class="flex items-center gap-3 text-xs font-medium"><label><input type="checkbox" id="yangiHolatTahrir" checked> Tahrir</label><label><input type="checkbox" id="yangiHolatOchirish" checked> O‘chirish</label></div></div><button id="addNewHolatBtn" class="bg-indigo-600 text-white px-6 py-2.5 rounded-2xl font-bold text-xs shadow hover:shadow-lg">Qo'shish</button></div>
+                    <div id="adminHolatlarListContainer" class="space-y-2"></div>
+                </div>
+            `;
+            loadAdminHolatlarList(holatlar);
+            document.getElementById('addNewHolatBtn').addEventListener('click', async () => {
+                const yozuv = document.getElementById('yangiHolatYozuv').value.trim(); const color = document.getElementById('yangiHolatColor').value; const tahrir = document.getElementById('yangiHolatTahrir').checked; const ochirish = document.getElementById('yangiHolatOchirish').checked;
+                if (!yozuv) { alert("Nomi kiriting!"); return; }
+                const rang = `background-color:${color}20;color:${color};border:1px solid ${color}40;`; const key = 'h_' + Math.floor(1000 + Math.random() * 9000);
+                await set(ref(db, `holatlar/${key}`), { yozuv, rang, hex: color, tahrirlashRuxsati: tahrir, ochirishRuxsati: ochirish });
+                CACHE.holatlar = null; renderAdminHolatlar(container);
+            });
+        }
+        async function loadAdminHolatlarList(holatlar) {
+            const container = document.getElementById('adminHolatlarListContainer'); if (!container) return;
+            let html = '';
+            for (let hKey in holatlar) {
+                const h = holatlar[hKey];
+                html += `<div class="border p-4 rounded-2xl bg-gray-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-3"><div class="flex items-center gap-3"><span class="px-3 py-1 rounded-full font-bold text-xs" style="${h.rang}">${h.yozuv}</span><div class="text-xs text-gray-500">Tahrir: <b>${h.tahrirlashRuxsati !== false ? '✅' : '❌'}</b> | O‘chirish: <b>${h.ochirishRuxsati !== false ? '✅' : '❌'}</b></div></div><div class="flex gap-2"><button onclick="openEditHolatModal('${hKey}','${h.yozuv}','${h.hex || '#10b981'}',${h.tahrirlashRuxsati !== false},${h.ochirishRuxsati !== false})" class="bg-blue-50 text-blue-600 px-4 py-1.5 rounded-2xl text-xs font-bold border border-blue-200">Tahrirlash</button><button onclick="deleteHolat('${hKey}')" class="bg-red-50 text-red-600 px-4 py-1.5 rounded-2xl text-xs font-bold border border-red-200">O'chirish</button></div></div>`;
+            }
+            container.innerHTML = html || '<p class="text-gray-400">Holatlar yo‘q</p>';
+        }
+        window.openEditHolatModal = async function(hKey, eskiYozuv, eskiHex, eskiTahrir, eskiOchirish) {
+            const modal = document.getElementById('modalContainer');
+            modal.innerHTML = `
+                <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 modal-overlay">
+                    <div class="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-md space-y-4 border border-indigo-100">
+                        <div class="flex justify-between items-center border-b pb-3"><h3 class="text-xl font-bold">Tahrirlash</h3><button onclick="closeModal()" class="text-2xl font-bold">&times;</button></div>
+                        <div><label class="text-xs font-medium">Nomi</label><input type="text" id="editHolatYozuv" value="${eskiYozuv}" class="w-full border-2 border-indigo-200 px-4 py-3 rounded-2xl"></div>
+                        <div><label class="text-xs font-medium">Rang</label><input type="color" id="editHolatColor" value="${eskiHex}" class="w-full h-12 cursor-pointer rounded border p-1 bg-white"></div>
+                        <div class="space-y-2"><label><input type="checkbox" id="editHolatTahrir" ${eskiTahrir ? 'checked' : ''}> Tahrirlash ruxsati</label><br><label><input type="checkbox" id="editHolatOchirish" ${eskiOchirish ? 'checked' : ''}> O‘chirish ruxsati</label></div>
+                        <div class="flex justify-end gap-2 pt-3 border-t"><button onclick="closeModal()" class="px-5 py-2.5 bg-gray-100 rounded-2xl font-bold text-sm">Bekor</button><button onclick="saveEditedHolat('${hKey}')" class="px-6 py-2.5 bg-indigo-600 text-white rounded-2xl font-bold text-sm shadow">Saqlash</button></div>
+                    </div>
+                </div>
+            `;
+        };
+        window.saveEditedHolat = async function(hKey) {
+            const yozuv = document.getElementById('editHolatYozuv').value.trim(); const color = document.getElementById('editHolatColor').value; const tahrir = document.getElementById('editHolatTahrir').checked; const ochirish = document.getElementById('editHolatOchirish').checked;
+            if (!yozuv) { alert("Nomi kiriting!"); return; }
+            const rang = `background-color:${color}20;color:${color};border:1px solid ${color}40;`;
+            await update(ref(db, `holatlar/${hKey}`), { yozuv, rang, hex: color, tahrirlashRuxsati: tahrir, ochirishRuxsati: ochirish });
+            CACHE.holatlar = null; closeModal(); renderAdminHolatlar(document.getElementById('tabContent'));
+        };
+        window.deleteHolat = async function(hKey) { if (confirm("O'chirilsin?")) { await remove(ref(db, `holatlar/${hKey}`)); CACHE.holatlar = null; renderAdminHolatlar(document.getElementById('tabContent')); } };
+
+        // ------------------ ADMIN: USERS ------------------
+        async function renderAdminUsers(container) {
+            const usersSnap = await get(ref(db, 'users')); const users = usersSnap.exists() ? usersSnap.val() : {};
+            container.innerHTML = `
+                <div class="bg-white/70 backdrop-blur-sm p-6 rounded-3xl shadow-sm border border-indigo-100 space-y-6">
+                    <div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-users-gear text-purple-500 mr-3"></i>Foydalanuvchilar</h2><p class="text-sm text-gray-500">ID qidirish, rol, ID va parolni o‘zgartirish</p></div>
+                    <div class="flex gap-2"><input type="text" id="adminUserIdSearchInput" placeholder="ID raqami..." class="border-2 border-indigo-200 px-4 py-3 rounded-2xl flex-1 bg-white"><button id="searchUserIdBtn" class="bg-indigo-600 text-white px-6 py-3 rounded-2xl font-bold text-sm shadow hover:shadow-lg">Qidirish</button></div>
+                    <div id="userIdSearchResultContainer" class="space-y-4"></div>
+                    <hr><div><h3 class="text-lg font-bold mb-3">Barcha foydalanuvchilar</h3><div id="allUsersListContainer" class="space-y-3"></div></div>
+                </div>
+            `;
+            loadAllUsersList(users);
+            document.getElementById('searchUserIdBtn').addEventListener('click', () => { const q = document.getElementById('adminUserIdSearchInput').value.trim(); executeIdSearch(q, users); });
+            document.getElementById('adminUserIdSearchInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') { const q = document.getElementById('adminUserIdSearchInput').value.trim(); executeIdSearch(q, users); } });
+        }
+
+        window.openChangeRoleModal = function(userId, currentRole) {
+            const modal = document.getElementById('modalContainer');
+            modal.innerHTML = `
+                <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 modal-overlay">
+                    <div class="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-md space-y-4 border border-indigo-100">
+                        <div class="flex justify-between items-center border-b pb-3"><h3 class="text-xl font-bold">Rolni o‘zgartirish</h3><button onclick="closeModal()" class="text-2xl font-bold">&times;</button></div>
+                        <div><label class="text-xs font-medium">Yangi rol</label>
+                            <select id="newRoleSelect" class="w-full border-2 border-indigo-200 px-4 py-3 rounded-2xl bg-white">
+                                <option value="admin" ${currentRole === 'admin' ? 'selected' : ''}>Admin</option>
+                                <option value="odam" ${currentRole === 'odam' ? 'selected' : ''}>Odam</option>
+                            </select>
+                        </div>
+                        <div class="flex justify-end gap-2 pt-3 border-t"><button onclick="closeModal()" class="px-5 py-2.5 bg-gray-100 rounded-2xl font-bold text-sm">Bekor</button><button onclick="changeUserRole('${userId}')" class="px-6 py-2.5 bg-indigo-600 text-white rounded-2xl font-bold text-sm shadow">Saqlash</button></div>
+                    </div>
+                </div>
+            `;
+        };
+        window.changeUserRole = async function(userId) {
+            const newRole = document.getElementById('newRoleSelect').value;
+            await update(ref(db, `users/${userId}`), { role: newRole });
+            profiles = profiles.map(p => p.id === userId ? { ...p, role: newRole } : p);
+            localStorage.setItem('app_profiles', JSON.stringify(profiles));
+            const user = await getCurrentUser();
+            if (user && user.id === userId) { CACHE.user = null; }
+            alert("Rol o'zgartirildi!");
+            closeModal();
+            renderAdminUsers(document.getElementById('tabContent'));
+        };
+
+        window.openChangeIdModal = function(oldId) {
+            const modal = document.getElementById('modalContainer');
+            modal.innerHTML = `
+                <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 modal-overlay">
+                    <div class="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-md space-y-4 border border-indigo-100">
+                        <div class="flex justify-between items-center border-b pb-3"><h3 class="text-xl font-bold">ID raqamini o‘zgartirish</h3><button onclick="closeModal()" class="text-2xl font-bold">&times;</button></div>
+                        <div><label class="text-xs font-medium">Yangi ID (6 xonali raqam)</label><input type="text" id="newIdInput" placeholder="Masalan: 123456" class="w-full border-2 border-indigo-200 px-4 py-3 rounded-2xl"></div>
+                        <div class="flex justify-end gap-2 pt-3 border-t"><button onclick="closeModal()" class="px-5 py-2.5 bg-gray-100 rounded-2xl font-bold text-sm">Bekor</button><button onclick="changeUserId('${oldId}')" class="px-6 py-2.5 bg-indigo-600 text-white rounded-2xl font-bold text-sm shadow">Saqlash</button></div>
+                    </div>
+                </div>
+            `;
+        };
+        window.changeUserId = async function(oldId) {
+            const newId = document.getElementById('newIdInput').value.trim();
+            if (!newId || !/^\d{6}$/.test(newId)) { alert("ID 6 xonali raqam bo‘lishi kerak!"); return; }
+            const snap = await get(ref(db, `users/${newId}`));
+            if (snap.exists()) { alert("Bu ID allaqachon mavjud!"); return; }
+            const oldSnap = await get(ref(db, `users/${oldId}`));
+            if (!oldSnap.exists()) { alert("Eski ID topilmadi!"); return; }
+            const userData = oldSnap.val();
+            await set(ref(db, `users/${newId}`), { ...userData, id: newId });
+            await remove(ref(db, `users/${oldId}`));
+            profiles = profiles.map(p => p.id === oldId ? { ...p, id: newId } : p);
+            localStorage.setItem('app_profiles', JSON.stringify(profiles));
+            const user = await getCurrentUser();
+            if (user && user.id === oldId) {
+                currentProfileId = newId;
+                localStorage.setItem('current_profile_id', currentProfileId);
+                CACHE.user = null;
+            }
+            alert("ID o'zgartirildi!");
+            closeModal();
+            renderAdminUsers(document.getElementById('tabContent'));
+        };
+
+        window.openChangePinModal = function(userId) {
+            const modal = document.getElementById('modalContainer');
+            modal.innerHTML = `
+                <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 modal-overlay">
+                    <div class="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-md space-y-4 border border-indigo-100">
+                        <div class="flex justify-between items-center border-b pb-3"><h3 class="text-xl font-bold">Parolni o‘zgartirish</h3><button onclick="closeModal()" class="text-2xl font-bold">&times;</button></div>
+                        <div><label class="text-xs font-medium">Yangi parol (ixtiyoriy)</label><input type="text" id="newPinInput" placeholder="Yangi parol" class="w-full border-2 border-indigo-200 px-4 py-3 rounded-2xl"></div>
+                        <div class="flex justify-end gap-2 pt-3 border-t"><button onclick="closeModal()" class="px-5 py-2.5 bg-gray-100 rounded-2xl font-bold text-sm">Bekor</button><button onclick="changeUserPin('${userId}')" class="px-6 py-2.5 bg-indigo-600 text-white rounded-2xl font-bold text-sm shadow">Saqlash</button></div>
+                    </div>
+                </div>
+            `;
+        };
+        window.changeUserPin = async function(userId) {
+            const newPin = document.getElementById('newPinInput').value.trim();
+            await update(ref(db, `users/${userId}`), { pin: newPin || "1234" });
+            profiles = profiles.map(p => p.id === userId ? { ...p, pin: newPin || "1234" } : p);
+            localStorage.setItem('app_profiles', JSON.stringify(profiles));
+            alert("Parol o'zgartirildi!");
+            closeModal();
+            renderAdminUsers(document.getElementById('tabContent'));
+        };
+
+        async function executeIdSearch(idVal, users) {
+            const res = document.getElementById('userIdSearchResultContainer'); if (!idVal) { res.innerHTML = `<p class="text-red-500 text-xs">ID kiriting</p>`; return; }
+            const target = users[idVal]; if (!target) { res.innerHTML = `<div class="p-4 bg-red-50 text-red-600 rounded-2xl font-bold text-sm">ID topilmadi</div>`; return; }
+            const arizalar = await getArizalarCached(true); const turlar = await getArizaTurlariCached(true);
+            let aHtml = ''; let cnt = 0;
+            for (let aId in arizalar) { const a = arizalar[aId]; if (a.userId === idVal) { cnt++; const turName = turlar[a.turKey] ? turlar[a.turKey].nomi : 'Ariza'; aHtml += `<div class="border p-3 rounded-2xl bg-gray-50 text-xs"><p class="font-bold text-indigo-700">${a.id} | ${turName}</p><p class="text-gray-500">${a.holat} | ${new Date(a.sana).toLocaleString()}</p></div>`; } }
+            res.innerHTML = `
+                <div class="border p-5 rounded-3xl bg-indigo-50/60 border-indigo-200 space-y-3">
+                    <div class="flex flex-wrap justify-between items-center gap-2">
+                        <div><h3 class="font-bold text-lg">ID: <span class="text-indigo-600">${target.id}</span></h3><p class="text-xs text-gray-500 uppercase">${target.role} | ${target.status || 'offline'}</p></div>
+                        <div class="flex flex-wrap gap-2">
+                            <button onclick="toggleBlockUser('${target.id}', ${!target.blocked})" class="px-4 py-1.5 rounded-2xl text-xs font-bold text-white ${target.blocked ? 'bg-emerald-600' : 'bg-red-600'}">${target.blocked ? 'Blokdan chiqarish' : 'Bloklash'}</button>
+                            <button onclick="openChangeRoleModal('${target.id}','${target.role}')" class="bg-purple-600 text-white px-4 py-1.5 rounded-2xl text-xs font-bold">Rol</button>
+                            <button onclick="openChangeIdModal('${target.id}')" class="bg-blue-600 text-white px-4 py-1.5 rounded-2xl text-xs font-bold">ID</button>
+                            <button onclick="openChangePinModal('${target.id}')" class="bg-amber-600 text-white px-4 py-1.5 rounded-2xl text-xs font-bold">Parol</button>
+                        </div>
+                    </div>
+                    <div><h4 class="text-xs font-bold uppercase">Arizalar (${cnt})</h4><div class="max-h-60 overflow-y-auto space-y-2">${aHtml || '<p class="text-xs text-gray-400">Yo‘q</p>'}</div></div>
+                </div>
+            `;
+        }
+
+        function loadAllUsersList(users) {
+            const container = document.getElementById('allUsersListContainer'); if (!container) return;
+            let html = '';
+            for (let uId in users) { const u = users[uId];
+                html += `
+                    <div class="border p-4 rounded-2xl flex flex-wrap items-center justify-between gap-2 bg-gray-50 text-sm">
+                        <div><h5 class="font-bold">ID: ${u.id} <span class="text-xs uppercase px-2 py-0.5 rounded-full ${u.role === 'admin' ? 'bg-purple-200 text-purple-800' : 'bg-blue-200 text-blue-800'}">${u.role}</span></h5><p class="text-xs text-gray-400">${u.lastSeen ? new Date(u.lastSeen).toLocaleString() : 'Noma\'lum'} (${u.status || 'offline'})</p></div>
+                        <div class="flex flex-wrap gap-1">
+                            <button onclick="executeIdSearch('${u.id}', ${JSON.stringify(users).replace(/"/g, '&quot;')})" class="bg-indigo-600 text-white px-3 py-1 rounded-2xl text-xs font-bold">Batafsil</button>
+                            <button onclick="toggleBlockUser('${u.id}', ${!u.blocked})" class="px-3 py-1 rounded-2xl text-xs font-bold text-white ${u.blocked ? 'bg-emerald-600' : 'bg-red-600'}">${u.blocked ? 'Blokdan ochish' : 'Bloklash'}</button>
+                            <button onclick="openChangeRoleModal('${u.id}','${u.role}')" class="bg-purple-600 text-white px-3 py-1 rounded-2xl text-xs font-bold">Rol</button>
+                            <button onclick="openChangeIdModal('${u.id}')" class="bg-blue-600 text-white px-3 py-1 rounded-2xl text-xs font-bold">ID</button>
+                            <button onclick="openChangePinModal('${u.id}')" class="bg-amber-600 text-white px-3 py-1 rounded-2xl text-xs font-bold">Parol</button>
+                        </div>
+                    </div>
+                `;
+            }
+            container.innerHTML = html || '<p class="text-gray-400">Yo‘q</p>';
+        }
+
+        window.toggleBlockUser = async function(id, status) { await update(ref(db, `users/${id}`), { blocked: status }); alert(`ID ${id} ${status ? 'bloklandi' : 'blokdan chiqarildi'}`); renderAdminUsers(document.getElementById('tabContent')); };
+
+        // ------------------ ADMIN: RUXSATLAR (oddiy foydalanuvchilar) ------------------
+        async function renderAdminRuxsatlar(container) {
+            const usersSnap = await get(ref(db, 'users')); const users = usersSnap.exists() ? usersSnap.val() : {};
+            const permSnap = await get(ref(db, 'ruxsatlar')); const allPerms = permSnap.exists() ? permSnap.val() : {};
+            let html = `<div class="bg-white/70 backdrop-blur-sm p-6 rounded-3xl shadow-sm border border-indigo-100 space-y-6"><div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-user-lock text-purple-500 mr-3"></i>Ruxsatlar</h2><p class="text-sm text-gray-500">Har bir ID uchun menyu ruxsatlari</p></div><div class="space-y-4">`;
+            for (let uId in users) {
+                const u = users[uId]; if (u.role === 'admin') continue;
+                const p = allPerms[uId] || {};
+                const chk = (key) => p[key] !== false;
+                html += `<div class="border p-4 rounded-2xl bg-gray-50 space-y-3"><div class="font-bold text-gray-900">ID: ${u.id} (${u.role})</div><div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs"><label class="flex items-center gap-2 bg-white p-2 rounded-2xl border cursor-pointer"><input type="checkbox" onchange="updateUserPerm('${uId}','ariza',this.checked)" ${chk('ariza') ? 'checked' : ''}> Ariza</label><label class="flex items-center gap-2 bg-white p-2 rounded-2xl border cursor-pointer"><input type="checkbox" onchange="updateUserPerm('${uId}','arizalarim',this.checked)" ${chk('arizalarim') ? 'checked' : ''}> Arizalarim</label><label class="flex items-center gap-2 bg-white p-2 rounded-2xl border cursor-pointer"><input type="checkbox" onchange="updateUserPerm('${uId}','sorovnoma',this.checked)" ${chk('sorovnoma') ? 'checked' : ''}> So‘rovnoma</label><label class="flex items-center gap-2 bg-white p-2 rounded-2xl border cursor-pointer"><input type="checkbox" onchange="updateUserPerm('${uId}','sorovnomalarim',this.checked)" ${chk('sorovnomalarim') ? 'checked' : ''}> So‘rovnomalarim</label><label class="flex items-center gap-2 bg-white p-2 rounded-2xl border cursor-pointer"><input type="checkbox" onchange="updateUserPerm('${uId}','yangiliklar',this.checked)" ${chk('yangiliklar') ? 'checked' : ''}> Yangiliklar</label><label class="flex items-center gap-2 bg-white p-2 rounded-2xl border cursor-pointer"><input type="checkbox" onchange="updateUserPerm('${uId}','xabarlar',this.checked)" ${chk('xabarlar') ? 'checked' : ''}> Xabarlar</label><label class="flex items-center gap-2 bg-white p-2 rounded-2xl border cursor-pointer"><input type="checkbox" onchange="updateUserPerm('${uId}','profillarim',this.checked)" ${chk('profillarim') ? 'checked' : ''}> Profillarim</label></div></div>`;
+            }
+            html += `</div></div>`;
+            container.innerHTML = html;
+        }
+        window.updateUserPerm = async function(userId, menuKey, isAllowed) { await update(ref(db, `ruxsatlar/${userId}`), { [menuKey]: isAllowed }); };
+
+        // ------------------ ADMIN: YANGILIKLAR ------------------
+        async function renderAdminYangilikManagement(container) {
+            const yangiliklar = await getYangiliklarCached(true);
+            let listHtml = '';
+            for (let yKey in yangiliklar) {
+                const y = yangiliklar[yKey];
+                let media = ''; if (y.rasmUrl) media += `<div class="mt-1"><img src="${y.rasmUrl}" class="h-16 object-contain rounded-xl border"></div>`;
+                if (y.videoUrl) media += `<div class="mt-1"><video src="${y.videoUrl}" class="h-16 object-contain rounded-xl border"></video></div>`;
+                listHtml += `<div class="border p-4 rounded-2xl bg-gray-50 flex justify-between items-start gap-3"><div class="space-y-1 flex-1"><h4 class="font-bold">${y.sarlavha}</h4><p class="text-xs text-gray-600 whitespace-pre-wrap">${y.matn}</p>${media}<span class="text-[10px] text-gray-400">${y.sana || ''} | ${y.vaqt || ''}</span></div><div class="flex gap-1"><button onclick="openEditYangilikModal('${yKey}')" class="text-blue-600 bg-blue-50 px-3 py-1.5 rounded-2xl font-bold text-xs"><i class="fa-regular fa-pen"></i></button><button onclick="deleteYangilik('${yKey}')" class="text-red-600 bg-red-50 px-3 py-1.5 rounded-2xl font-bold text-xs"><i class="fa-regular fa-trash"></i></button></div></div>`;
+            }
+            container.innerHTML = `
+                <div class="bg-white/70 backdrop-blur-sm p-6 rounded-3xl shadow-sm border border-indigo-100 space-y-6">
+                    <div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-bullhorn text-purple-500 mr-3"></i>Yangiliklar boshqaruvi</h2><p class="text-sm text-gray-500">Yangi e'lon qo'shish, tahrirlash</p></div>
+                    <div class="bg-gray-50/80 p-4 rounded-3xl border-2 border-dashed border-indigo-200 space-y-3"><h4 class="text-xs font-bold text-gray-700 uppercase">Yangi yangilik</h4><input type="text" id="adminYangilikSarlavha" placeholder="Sarlavha" class="w-full border-2 border-indigo-200 px-4 py-3 rounded-2xl bg-white"><textarea id="adminYangilikMatn" placeholder="Matn" rows="3" class="w-full border-2 border-indigo-200 px-4 py-3 rounded-2xl bg-white"></textarea><div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs"><div><label class="text-gray-500">Rasm</label><input type="file" accept="image/*" id="adminYangilikRasm" class="w-full border-2 border-indigo-200 p-1 rounded-xl bg-white file-input"></div><div><label class="text-gray-500">Video</label><input type="file" accept="video/*" id="adminYangilikVideo" class="w-full border-2 border-indigo-200 p-1 rounded-xl bg-white file-input"></div></div><button id="addYangilikBtn" class="bg-indigo-600 text-white px-6 py-2.5 rounded-2xl font-bold text-xs shadow hover:shadow-lg">E'lon qilish</button></div>
+                    <div class="space-y-3"><h4 class="text-sm font-bold">Mavjudlar</h4>${listHtml || '<p class="text-gray-400">Yo‘q</p>'}</div>
+                </div>
+            `;
+            document.getElementById('addYangilikBtn').addEventListener('click', async () => {
+                const sarlavha = document.getElementById('adminYangilikSarlavha').value.trim(); const matn = document.getElementById('adminYangilikMatn').value.trim(); const rasmInput = document.getElementById('adminYangilikRasm'); const videoInput = document.getElementById('adminYangilikVideo');
+                if (!sarlavha || !matn) { alert("Sarlavha va matn kiriting!"); return; }
+                async function readFile(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); }); }
+                let rasmUrl = '', videoUrl = '';
+                if (rasmInput.files && rasmInput.files[0]) rasmUrl = await readFile(rasmInput.files[0]);
+                if (videoInput.files && videoInput.files[0]) videoUrl = await readFile(videoInput.files[0]);
+                const d = new Date(); const sana = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`; const vaqt = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+                await push(ref(db, 'yangiliklar'), { sarlavha, matn, rasmUrl, videoUrl, sana, vaqt });
+                CACHE.yangiliklar = null; alert("Qo'shildi!"); renderAdminYangilikManagement(container);
+            });
+        }
+        window.openEditYangilikModal = async function(yKey) {
+            const yangiliklar = await getYangiliklarCached(); const y = yangiliklar[yKey]; if (!y) return;
+            const modal = document.getElementById('modalContainer');
+            modal.innerHTML = `
+                <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 modal-overlay">
+                    <div class="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-lg space-y-4 border border-indigo-100">
+                        <div class="flex justify-between items-center border-b"><h3 class="text-xl font-bold">Tahrirlash</h3><button onclick="closeModal()" class="text-2xl font-bold">&times;</button></div>
+                        <div><label class="text-xs font-medium">Sarlavha</label><input type="text" id="editYangilikSarlavha" value="${y.sarlavha || ''}" class="w-full border-2 border-indigo-200 px-4 py-3 rounded-2xl"></div>
+                        <div><label class="text-xs font-medium">Matn</label><textarea id="editYangilikMatn" rows="4" class="w-full border-2 border-indigo-200 px-4 py-3 rounded-2xl">${y.matn || ''}</textarea></div>
+                        <div class="grid grid-cols-2 gap-2 text-xs"><div>${y.rasmUrl ? '<img src="'+y.rasmUrl+'" class="h-12 object-contain rounded border">' : ''}<input type="file" accept="image/*" id="editYangilikRasm" class="w-full border p-1 rounded-xl"></div><div>${y.videoUrl ? '<video src="'+y.videoUrl+'" class="h-12 object-contain rounded border"></video>' : ''}<input type="file" accept="video/*" id="editYangilikVideo" class="w-full border p-1 rounded-xl"></div></div>
+                        <div class="flex justify-end gap-2 pt-3 border-t"><button onclick="closeModal()" class="px-5 py-2.5 bg-gray-100 rounded-2xl font-bold">Bekor</button><button onclick="saveEditedYangilik('${yKey}')" class="px-6 py-2.5 bg-indigo-600 text-white rounded-2xl font-bold shadow">Saqlash</button></div>
+                    </div>
+                </div>
+            `;
+        };
+        window.saveEditedYangilik = async function(yKey) {
+            const sarlavha = document.getElementById('editYangilikSarlavha').value.trim(); const matn = document.getElementById('editYangilikMatn').value.trim(); const rasmInput = document.getElementById('editYangilikRasm'); const videoInput = document.getElementById('editYangilikVideo');
+            if (!sarlavha || !matn) { alert("Sarlavha va matn kerak!"); return; }
+            async function readFile(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); }); }
+            const yangiliklar = await getYangiliklarCached(); const eski = yangiliklar[yKey] || {};
+            let rasmUrl = eski.rasmUrl || '', videoUrl = eski.videoUrl || '';
+            if (rasmInput.files && rasmInput.files[0]) rasmUrl = await readFile(rasmInput.files[0]);
+            if (videoInput.files && videoInput.files[0]) videoUrl = await readFile(videoInput.files[0]);
+            await update(ref(db, `yangiliklar/${yKey}`), { sarlavha, matn, rasmUrl, videoUrl });
+            CACHE.yangiliklar = null; closeModal(); renderAdminYangilikManagement(document.getElementById('tabContent'));
+        };
+        window.deleteYangilik = async function(yKey) { if (confirm("O'chirilsin?")) { await remove(ref(db, `yangiliklar/${yKey}`)); CACHE.yangiliklar = null; renderAdminYangilikManagement(document.getElementById('tabContent')); } };
+
+        // ------------------ ADMIN: XABARLAR ------------------
+        async function renderAdminXabarlarManagement(container) {
+            const bolimlar = await getXabarlarCached(true); const usersSnap = await get(ref(db, 'users')); const users = usersSnap.exists() ? usersSnap.val() : {};
+            container.innerHTML = `
+                <div class="bg-white/70 backdrop-blur-sm p-6 rounded-3xl shadow-sm border border-indigo-100 space-y-6">
+                    <div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-comments text-purple-500 mr-3"></i>Xabarlar boshqaruvi</h2><p class="text-sm text-gray-500">Bo'limlar va xabarlarni boshqarish</p></div>
+                    <div class="flex flex-col md:flex-row gap-2"><input type="text" id="yangiBolimNomi" placeholder="Yangi bo'lim nomi" class="border-2 border-indigo-200 px-4 py-3 rounded-2xl flex-1 bg-white"><button id="addBolimBtn" class="bg-indigo-600 text-white px-6 py-3 rounded-2xl font-bold">Qo'shish</button></div>
+                    <div id="adminBolimlarList" class="space-y-4"></div>
+                </div>
+            `;
+            loadAdminBolimlarList();
+            document.getElementById('addBolimBtn').addEventListener('click', async () => {
+                const nomi = document.getElementById('yangiBolimNomi').value.trim(); if (!nomi) return;
+                await push(ref(db, 'xabarlarBolimlari'), { nomi }); document.getElementById('yangiBolimNomi').value = ''; CACHE.xabarlar = null; loadAdminBolimlarList();
+            });
+        }
+        async function loadAdminBolimlarList() {
+            const bolimlar = await getXabarlarCached(true); const usersSnap = await get(ref(db, 'users')); const users = usersSnap.exists() ? usersSnap.val() : {};
+            const listDiv = document.getElementById('adminBolimlarList'); if (!listDiv) return;
+            let html = '';
+            for (let bKey in bolimlar) {
+                const b = bolimlar[bKey]; const xList = b.xabarlar || {};
+                let xHtml = '';
+                for (let xKey in xList) {
+                    const x = xList[xKey]; let media = ''; if (x.rasmUrl) media += `<div class="mt-1"><img src="${x.rasmUrl}" class="h-16 object-contain rounded-xl border"></div>`; if (x.videoUrl) media += `<div class="mt-1"><video src="${x.videoUrl}" class="h-16 object-contain rounded-xl border" controls></video></div>`;
+                    xHtml += `<div class="bg-white p-4 rounded-2xl border text-sm flex justify-between items-start gap-3"><div class="space-y-1 flex-1"><div class="flex items-center gap-2"><h5 class="font-bold">${x.nomi}</h5>${x.targetId ? `<span class="bg-purple-100 text-purple-700 text-[10px] px-2 py-0.5 rounded font-bold">ID: ${x.targetId}</span>` : '<span class="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded font-bold">Hamma</span>'}</div><p class="text-xs text-gray-600 whitespace-pre-wrap">${x.matn}</p>${media}<span class="text-[10px] text-gray-400">${x.sana || ''}</span></div><div class="flex gap-1"><button onclick="openEditXabarModal('${bKey}','${xKey}')" class="text-blue-600 bg-blue-50 px-3 py-1.5 rounded-2xl font-bold text-xs"><i class="fa-regular fa-pen"></i></button><button onclick="deleteXabar('${bKey}','${xKey}')" class="text-red-600 bg-red-50 px-3 py-1.5 rounded-2xl font-bold text-xs"><i class="fa-regular fa-trash"></i></button></div></div>`;
+                }
+                html += `<div class="border p-5 rounded-3xl bg-gray-50/60 space-y-4"><div class="flex justify-between items-center border-b pb-2"><h3 class="font-bold text-lg text-indigo-700">${b.nomi} <span class="text-xs bg-gray-200 px-2 py-0.5 rounded-full">${Object.keys(xList).length}</span></h3><div class="space-x-2"><button onclick="openEditBolimModal('${bKey}','${b.nomi}')" class="text-blue-600 font-bold text-xs bg-blue-50 px-4 py-1.5 rounded-2xl border border-blue-200">Tahrirlash</button><button onclick="deleteBolim('${bKey}')" class="text-red-600 text-xs font-bold bg-red-50 px-4 py-1.5 rounded-2xl border border-red-200">O'chirish</button></div></div><div class="space-y-2">${xHtml || '<p class="text-xs text-gray-400">Xabarlar yo‘q</p>'}</div><div class="space-y-3 pt-3 border-t bg-white p-4 rounded-3xl border"><h4 class="text-xs font-bold uppercase">Yangi xabar</h4><div class="grid grid-cols-1 md:grid-cols-2 gap-2"><input type="text" id="xabarNomi_${bKey}" placeholder="Sarlavha" class="border-2 border-indigo-200 px-3 py-2.5 rounded-2xl text-sm bg-white"><select id="xabarTarget_${bKey}" class="border-2 border-indigo-200 px-3 py-2.5 rounded-2xl text-sm bg-white"><option value="">-- Hamma --</option>${Object.keys(users).map(uId => `<option value="${uId}">ID: ${uId}</option>`).join('')}</select></div><textarea id="xabarMatni_${bKey}" rows="2" placeholder="Matn" class="w-full border-2 border-indigo-200 px-3 py-2.5 rounded-2xl text-sm bg-white"></textarea><div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs"><div><label>Rasm</label><input type="file" accept="image/*" id="xabarRasm_${bKey}" class="w-full border-2 border-indigo-200 p-1 rounded-xl bg-white file-input"></div><div><label>Video</label><input type="file" accept="video/*" id="xabarVideo_${bKey}" class="w-full border-2 border-indigo-200 p-1 rounded-xl bg-white file-input"></div></div><button onclick="addXabarToBolim('${bKey}')" class="bg-slate-800 text-white px-5 py-2.5 rounded-2xl text-xs font-bold shadow hover:shadow-lg"><i class="fa-regular fa-paper-plane mr-1"></i>Yuborish</button></div></div>`;
+            }
+            listDiv.innerHTML = html || '<p class="text-gray-400 text-sm">Bo‘limlar yo‘q</p>';
+        }
+        window.openEditBolimModal = async function(bKey, eski) { const y = prompt("Yangi nom:", eski); if (y && y.trim()) { await update(ref(db, `xabarlarBolimlari/${bKey}`), { nomi: y.trim() }); CACHE.xabarlar = null; loadAdminBolimlarList(); } };
+        window.deleteBolim = async function(bKey) { if (confirm("O'chirilsin?")) { await remove(ref(db, `xabarlarBolimlari/${bKey}`)); CACHE.xabarlar = null; loadAdminBolimlarList(); } };
+        window.addXabarToBolim = async function(bKey) {
+            const nomi = document.getElementById(`xabarNomi_${bKey}`).value.trim(); const matn = document.getElementById(`xabarMatni_${bKey}`).value.trim(); const target = document.getElementById(`xabarTarget_${bKey}`).value; const rasmInput = document.getElementById(`xabarRasm_${bKey}`); const videoInput = document.getElementById(`xabarVideo_${bKey}`);
+            if (!nomi || !matn) { alert("Sarlavha va matn kerak!"); return; }
+            async function readFile(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); }); }
+            let rasmUrl = '', videoUrl = '';
+            if (rasmInput.files && rasmInput.files[0]) rasmUrl = await readFile(rasmInput.files[0]);
+            if (videoInput.files && videoInput.files[0]) videoUrl = await readFile(videoInput.files[0]);
+            await push(ref(db, `xabarlarBolimlari/${bKey}/xabarlar`), { nomi, matn, targetId: target || '', rasmUrl, videoUrl, sana: new Date().toLocaleString() });
+            CACHE.xabarlar = null; alert("Yuborildi!"); loadAdminBolimlarList();
+        };
+        window.openEditXabarModal = async function(bKey, xKey) {
+            const bolimlar = await getXabarlarCached(); const x = bolimlar[bKey]?.xabarlar?.[xKey]; if (!x) return;
+            const usersSnap = await get(ref(db, 'users')); const users = usersSnap.exists() ? usersSnap.val() : {};
+            const modal = document.getElementById('modalContainer');
+            modal.innerHTML = `
+                <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 modal-overlay">
+                    <div class="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-lg space-y-4 border border-indigo-100">
+                        <div class="flex justify-between items-center border-b"><h3 class="text-xl font-bold">Tahrirlash</h3><button onclick="closeModal()" class="text-2xl font-bold">&times;</button></div>
+                        <div><label class="text-xs font-medium">Sarlavha</label><input type="text" id="editXabarNomi" value="${x.nomi || ''}" class="w-full border-2 border-indigo-200 px-4 py-3 rounded-2xl"></div>
+                        <div><label class="text-xs font-medium">Qabul qiluvchi</label><select id="editXabarTarget" class="w-full border-2 border-indigo-200 px-4 py-3 rounded-2xl bg-white"><option value="">-- Hamma --</option>${Object.keys(users).map(uId => `<option value="${uId}" ${x.targetId === uId ? 'selected' : ''}>ID: ${uId}</option>`).join('')}</select></div>
+                        <div><label class="text-xs font-medium">Matn</label><textarea id="editXabarMatni" rows="3" class="w-full border-2 border-indigo-200 px-4 py-3 rounded-2xl">${x.matn || ''}</textarea></div>
+                        <div class="grid grid-cols-2 gap-2 text-xs"><div>${x.rasmUrl ? '<img src="'+x.rasmUrl+'" class="h-12 object-contain rounded border">' : ''}<input type="file" accept="image/*" id="editXabarRasm" class="w-full border p-1 rounded-xl"></div><div>${x.videoUrl ? '<video src="'+x.videoUrl+'" class="h-12 object-contain rounded border"></video>' : ''}<input type="file" accept="video/*" id="editXabarVideo" class="w-full border p-1 rounded-xl"></div></div>
+                        <div class="flex justify-end gap-2 pt-3 border-t"><button onclick="closeModal()" class="px-5 py-2.5 bg-gray-100 rounded-2xl font-bold">Bekor</button><button onclick="saveEditedXabar('${bKey}','${xKey}')" class="px-6 py-2.5 bg-indigo-600 text-white rounded-2xl font-bold shadow">Saqlash</button></div>
+                    </div>
+                </div>
+            `;
+        };
+        window.saveEditedXabar = async function(bKey, xKey) {
+            const nomi = document.getElementById('editXabarNomi').value.trim(); const target = document.getElementById('editXabarTarget').value; const matn = document.getElementById('editXabarMatni').value.trim(); const rasmInput = document.getElementById('editXabarRasm'); const videoInput = document.getElementById('editXabarVideo');
+            if (!nomi || !matn) { alert("Sarlavha va matn kerak!"); return; }
+            async function readFile(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); }); }
+            const bolimlar = await getXabarlarCached(); const eski = bolimlar[bKey]?.xabarlar?.[xKey] || {};
+            let rasmUrl = eski.rasmUrl || '', videoUrl = eski.videoUrl || '';
+            if (rasmInput.files && rasmInput.files[0]) rasmUrl = await readFile(rasmInput.files[0]);
+            if (videoInput.files && videoInput.files[0]) videoUrl = await readFile(videoInput.files[0]);
+            await update(ref(db, `xabarlarBolimlari/${bKey}/xabarlar/${xKey}`), { nomi, matn, targetId: target || '', rasmUrl, videoUrl });
+            CACHE.xabarlar = null; closeModal(); loadAdminBolimlarList();
+        };
+        window.deleteXabar = async function(bKey, xKey) { if (confirm("O'chirilsin?")) { await remove(ref(db, `xabarlarBolimlari/${bKey}/xabarlar/${xKey}`)); CACHE.xabarlar = null; loadAdminBolimlarList(); } };
+
+        // ------------------ ADMIN: TEXNIK ISHLAR ------------------
+        async function renderAdminTexnik(container) {
+            const texnikRef = ref(db, 'texnikIshlar');
+            const snap = await get(texnikRef);
+            const texniklar = snap.exists() ? snap.val() : {};
+
+            let listHtml = '';
+            for (let tKey in texniklar) {
+                const t = texniklar[tKey];
+                listHtml += `
+                    <div class="border p-4 rounded-2xl bg-gray-50 flex justify-between items-start gap-3">
+                        <div><h4 class="font-bold text-gray-900">${t.sarlavha}</h4><p class="text-xs text-gray-600 whitespace-pre-wrap">${t.matn}</p><span class="text-[10px] text-gray-400">${t.sana || ''}</span></div>
+                        <div class="flex gap-1"><button onclick="openEditTexnikModal('${tKey}')" class="text-blue-600 bg-blue-50 px-3 py-1.5 rounded-2xl font-bold text-xs"><i class="fa-regular fa-pen"></i></button><button onclick="deleteTexnik('${tKey}')" class="text-red-600 bg-red-50 px-3 py-1.5 rounded-2xl font-bold text-xs"><i class="fa-regular fa-trash"></i></button></div>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = `
+                <div class="bg-white/70 backdrop-blur-sm p-6 rounded-3xl shadow-sm border border-indigo-100 space-y-6">
+                    <div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-wrench text-purple-500 mr-3"></i>Texnik ishlar</h2><p class="text-sm text-gray-500">Texnik holat haqida e'lonlar</p></div>
+                    <div class="bg-gray-50/80 p-4 rounded-3xl border-2 border-dashed border-indigo-200 space-y-3"><h4 class="text-xs font-bold text-gray-700 uppercase">Yangi yozuv</h4><input type="text" id="texnikSarlavha" placeholder="Sarlavha" class="w-full border-2 border-indigo-200 px-4 py-3 rounded-2xl bg-white"><textarea id="texnikMatn" placeholder="Matn" rows="3" class="w-full border-2 border-indigo-200 px-4 py-3 rounded-2xl bg-white"></textarea><button id="addTexnikBtn" class="bg-indigo-600 text-white px-6 py-2.5 rounded-2xl font-bold text-xs shadow hover:shadow-lg">Qo'shish</button></div>
+                    <div class="space-y-3"><h4 class="text-sm font-bold">Mavjud yozuvlar</h4>${listHtml || '<p class="text-gray-400">Yo‘q</p>'}</div>
+                </div>
+            `;
+            document.getElementById('addTexnikBtn').addEventListener('click', async () => {
+                const sarlavha = document.getElementById('texnikSarlavha').value.trim(); const matn = document.getElementById('texnikMatn').value.trim();
+                if (!sarlavha || !matn) { alert("To‘ldiring!"); return; }
+                await push(ref(db, 'texnikIshlar'), { sarlavha, matn, sana: new Date().toLocaleString() });
+                renderAdminTexnik(container);
+            });
+        }
+        window.openEditTexnikModal = async function(tKey) {
+            const snap = await get(ref(db, `texnikIshlar/${tKey}`)); const t = snap.exists() ? snap.val() : {};
+            if (!t) return;
+            const modal = document.getElementById('modalContainer');
+            modal.innerHTML = `
+                <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 modal-overlay">
+                    <div class="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-md space-y-4 border border-indigo-100">
+                        <div class="flex justify-between items-center border-b"><h3 class="text-xl font-bold">Tahrirlash</h3><button onclick="closeModal()" class="text-2xl font-bold">&times;</button></div>
+                        <div><label class="text-xs font-medium">Sarlavha</label><input type="text" id="editTexnikSarlavha" value="${t.sarlavha || ''}" class="w-full border-2 border-indigo-200 px-4 py-3 rounded-2xl"></div>
+                        <div><label class="text-xs font-medium">Matn</label><textarea id="editTexnikMatn" rows="3" class="w-full border-2 border-indigo-200 px-4 py-3 rounded-2xl">${t.matn || ''}</textarea></div>
+                        <div class="flex justify-end gap-2 pt-3 border-t"><button onclick="closeModal()" class="px-5 py-2.5 bg-gray-100 rounded-2xl font-bold">Bekor</button><button onclick="saveEditedTexnik('${tKey}')" class="px-6 py-2.5 bg-indigo-600 text-white rounded-2xl font-bold shadow">Saqlash</button></div>
+                    </div>
+                </div>
+            `;
+        };
+        window.saveEditedTexnik = async function(tKey) {
+            const sarlavha = document.getElementById('editTexnikSarlavha').value.trim(); const matn = document.getElementById('editTexnikMatn').value.trim();
+            if (!sarlavha || !matn) { alert("To‘ldiring!"); return; }
+            await update(ref(db, `texnikIshlar/${tKey}`), { sarlavha, matn });
+            closeModal(); renderAdminTexnik(document.getElementById('tabContent'));
+        };
+        window.deleteTexnik = async function(tKey) { if (confirm("O'chirilsin?")) { await remove(ref(db, `texnikIshlar/${tKey}`)); renderAdminTexnik(document.getElementById('tabContent')); } };
+
+        // ========== YANGI: ADMIN RUXSATLARINI BOSHQARISH ==========
+        async function renderAdminPrivileges(container) {
+            const usersSnap = await get(ref(db, 'users'));
+            const users = usersSnap.exists() ? usersSnap.val() : {};
+            const allAdminRuxsatlar = await getAdminRuxsatlar(true);
+
+            let html = `
+                <div class="bg-white/70 backdrop-blur-sm p-6 rounded-3xl shadow-sm border border-purple-100 space-y-6">
+                    <div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-shield-halved text-purple-500 mr-3"></i>Admin ruxsatlari</h2><p class="text-sm text-gray-500">Adminlar uchun alohida ruxsatlarni boshqarish. Belgilangan ruxsatlar ko'rsatiladi.</p></div>
+                    <div class="space-y-6">
+            `;
+
+            for (let uId in users) {
+                const u = users[uId];
+                if (u.role !== 'admin') continue;
+                // Agar o'zini o'zi boshqarish ruxsati bo'lmasa, o'zini o'zi tahrirlay olmaydi
+                // lekin bu yerda barcha adminlar ko'rinadi, lekin faqat admin_ruxsatlar ruxsati bo'lganlar o'zgartira oladi.
+                // Hozircha barcha adminlarga ruxsat berish mumkin.
+                const perms = allAdminRuxsatlar[uId] || {};
+                // Ruxsatlar ro'yxati (faqat true bo'lganlari)
+                const activePerms = [];
+                for (let pKey of ADMIN_PERM_LIST) {
+                    if (perms[pKey] === true) {
+                        activePerms.push(pKey);
+                    }
+                }
+                // Agar hech qanday ruxsat yo'q bo'lsa, default barchasini true qilamiz (eski tizim)
+                if (activePerms.length === 0 && Object.keys(perms).length === 0) {
+                    // hammasini true deb olamiz
+                    for (let pKey of ADMIN_PERM_LIST) {
+                        activePerms.push(pKey);
+                    }
+                }
+
+                html += `
+                    <div class="border p-5 rounded-3xl bg-gray-50/80 border-purple-200 space-y-4">
+                        <div class="flex justify-between items-center">
+                            <div><h3 class="font-bold text-lg text-purple-700">ID: ${u.id}</h3><p class="text-xs text-gray-500">Joriy ruxsatlar (faqat belgilanganlari)</p></div>
+                            <div class="flex gap-2">
+                                <button onclick="openAddAdminPermModal('${uId}')" class="bg-emerald-600 text-white px-4 py-1.5 rounded-2xl text-xs font-bold hover:bg-emerald-700"><i class="fa-regular fa-plus mr-1"></i>Ruxsat qo'shish</button>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            ${activePerms.map(p => `
+                                <span class="inline-flex items-center gap-1 bg-purple-100 text-purple-800 px-3 py-1.5 rounded-2xl text-xs font-bold border border-purple-200">
+                                    ${p}
+                                    <button onclick="removeAdminPerm('${uId}','${p}')" class="text-red-500 hover:text-red-700 ml-1"><i class="fa-regular fa-times-circle"></i></button>
+                                </span>
+                            `).join('') || '<span class="text-xs text-gray-400">Hech qanday ruxsat belgilanmagan</span>'}
+                        </div>
+                    </div>
+                `;
+            }
+
+            html += `
+                    </div>
+                </div>
+            `;
+            container.innerHTML = html;
+        }
+
+        // Yangi ruxsat qo'shish modal
+        window.openAddAdminPermModal = function(userId) {
+            const modal = document.getElementById('modalContainer');
+            // Hozirda mavjud ruxsatlarni olamiz
+            const availablePerms = ADMIN_PERM_LIST.filter(p => p !== 'admin_ruxsatlar'); // o'zini o'zi boshqarishni qo'shmaslik mumkin, lekin qo'shish mumkin
+            modal.innerHTML = `
+                <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 modal-overlay">
+                    <div class="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-md space-y-4 border border-purple-100">
+                        <div class="flex justify-between items-center border-b pb-3"><h3 class="text-xl font-bold">Ruxsat qo'shish</h3><button onclick="closeModal()" class="text-2xl font-bold">&times;</button></div>
+                        <div><label class="text-xs font-medium">Ruxsat turi</label>
+                            <select id="newAdminPermSelect" class="w-full border-2 border-purple-200 px-4 py-3 rounded-2xl bg-white">
+                                ${availablePerms.map(p => `<option value="${p}">${p}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="flex justify-end gap-2 pt-3 border-t"><button onclick="closeModal()" class="px-5 py-2.5 bg-gray-100 rounded-2xl font-bold text-sm">Bekor</button><button onclick="saveAddAdminPerm('${userId}')" class="px-6 py-2.5 bg-purple-600 text-white rounded-2xl font-bold text-sm shadow">Qo'shish</button></div>
+                    </div>
+                </div>
+            `;
+        };
+        window.saveAddAdminPerm = async function(userId) {
+            const permKey = document.getElementById('newAdminPermSelect').value;
+            await setAdminPerm(userId, permKey, true);
+            closeModal();
+            renderAdminPrivileges(document.getElementById('tabContent'));
+        };
+        window.removeAdminPerm = async function(userId, permKey) {
+            if (!confirm(`"${permKey}" ruxsatini olib tashlash?`)) return;
+            await setAdminPerm(userId, permKey, false);
+            renderAdminPrivileges(document.getElementById('tabContent'));
+        };
+
+        // ------------------ INIT ------------------
+        initSystem();
+    </script>
+</body>
+</html>
