@@ -1094,7 +1094,7 @@
             renderBuyurtmalarim(document.getElementById('tabContent'));
         };
 
-        // ==================== USER EDIT BUYURTMA (readonly items) ====================
+        // ==================== USER EDIT BUYURTMA (mahsulot tahrirlash holatga bog'liq) ====================
         window.openUserEditBuyurtmaModal = async function(bId) {
             const user = await getCurrentUser();
             const all = await getBuyurtmalarCached(true);
@@ -1106,22 +1106,60 @@
             const canEdit = holatData ? holatData.tahrirlashRuxsati !== false : true;
             const showKod5 = holatData ? holatData.kod5Korsatish !== false : true;
             const showShtrix = holatData ? holatData.shtrixKorsatish !== false : true;
+            // FAQAT holatda "mahsulotTahrirlash" true bo'lsa ochiladi
+            const canEditProducts = holatData ? holatData.mahsulotTahrirlash === true : false;
 
             if (!canEdit && !isAdmin) { alert("Bu holatda tahrirlash mumkin emas!"); return; }
             if (!isAdmin && b.userId !== user.id) { alert("Huquq yo'q"); return; }
 
-            const modal = document.getElementById('modalContainer');
-            const items = b.items || [{ mahsulotId: '', mahsulotNomi: b.mahsulotNomi, soni: b.soni, narx: b.narx, jami: b.jami }];
+            const mahsulotlar = await getMahsulotlarCached(true);
 
-            let itemsHtml = items.map((it) => `
-                <div class="border-2 border-gray-200 p-3 rounded-2xl space-y-2 bg-gray-50">
-                    <input type="text" class="w-full border-2 readonly-field px-3 py-2 rounded-xl text-sm" value="${it.mahsulotNomi || ''}" readonly>
-                    <div class="grid grid-cols-2 gap-2">
-                        <input type="number" class="w-full border-2 readonly-field px-3 py-2 rounded-xl text-sm" value="${it.soni || 1}" readonly>
-                        <input type="number" class="w-full border-2 readonly-field px-3 py-2 rounded-xl text-sm" value="${it.narx || 0}" readonly>
+            // Ishchi nusxa
+            let editItems = JSON.parse(JSON.stringify(b.items || [{ mahsulotId: '', mahsulotNomi: b.mahsulotNomi, soni: b.soni, narx: b.narx, jami: b.jami }]));
+
+            const modal = document.getElementById('modalContainer');
+
+            function calcJami() {
+                return editItems.reduce((s, it) => s + ((parseInt(it.narx) || 0) * (parseInt(it.soni) || 0)), 0);
+            }
+
+            function itemsHtml() {
+                return editItems.map((it, idx) => `
+                    <div class="border-2 border-gray-200 p-3 rounded-2xl space-y-2 bg-gray-50">
+                        <div class="flex justify-between items-center gap-2">
+                            <input type="text" class="flex-1 border-2 readonly-field px-3 py-2 rounded-xl text-sm" value="${it.mahsulotNomi || ''}" readonly>
+                            ${canEditProducts ? `<button onclick="window._uebRemoveItem(${idx})" class="bg-red-50 text-red-600 px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-red-100"><i class="fa-regular fa-trash"></i></button>` : ''}
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="number" class="w-full border-2 readonly-field px-3 py-2 rounded-xl text-sm" value="${it.soni || 1}" readonly>
+                            <input type="number" class="w-full border-2 readonly-field px-3 py-2 rounded-xl text-sm" value="${it.narx || 0}" readonly>
+                        </div>
                     </div>
-                </div>
-            `).join('');
+                `).join('') || '<p class="text-xs text-gray-400 text-center py-2">Mahsulotlar yo\'q</p>';
+            }
+
+            function productsSelectHtml() {
+                let opts = '<option value="">-- Mahsulot tanlang --</option>';
+                for (let mId in mahsulotlar) {
+                    const m = mahsulotlar[mId];
+                    const mSoni = parseInt(m.soni) || 0;
+                    if (mSoni <= 0) continue;
+                    opts += `<option value="${mId}">${m.nomi} — ${m.narx} so'm (${mSoni} dona)</option>`;
+                }
+                return opts;
+            }
+
+            function refreshUebUI() {
+                const listEl = document.getElementById('uebItemsList');
+                if (listEl) listEl.innerHTML = itemsHtml();
+                const jamiEl = document.getElementById('uebJami');
+                if (jamiEl) jamiEl.textContent = calcJami().toLocaleString() + " so'm";
+            }
+
+            window._uebRemoveItem = function(idx) {
+                editItems.splice(idx, 1);
+                refreshUebUI();
+            };
 
             modal.innerHTML = `
                 <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto modal-overlay">
@@ -1130,21 +1168,36 @@
 
                         ${(showKod5 || showShtrix) ? `
                         <div class="grid grid-cols-2 gap-2 bg-amber-50 p-3 rounded-2xl border border-amber-200">
-                            ${showKod5 ? `<div><label class="text-[10px] font-bold uppercase text-amber-700">5 xonali kod (o'zgarmaydi)</label><input type="text" value="${b.kod5 || ''}" class="w-full border-2 readonly-field px-3 py-2 rounded-xl font-bold tracking-widest" readonly></div>` : ''}
-                            ${showShtrix ? `<div><label class="text-[10px] font-bold uppercase text-amber-700">Shtrix kod (o'zgarmaydi)</label><input type="text" value="${b.shtrixKod || ''}" class="w-full border-2 readonly-field px-3 py-2 rounded-xl text-xs" readonly></div>` : ''}
+                            ${showKod5 ? `<div><label class="text-[10px] font-bold uppercase text-amber-700">5 xonali kod</label><input type="text" value="${b.kod5 || ''}" class="w-full border-2 readonly-field px-3 py-2 rounded-xl font-bold tracking-widest" readonly></div>` : ''}
+                            ${showShtrix ? `<div><label class="text-[10px] font-bold uppercase text-amber-700">Shtrix kod</label><input type="text" value="${b.shtrixKod || ''}" class="w-full border-2 readonly-field px-3 py-2 rounded-xl text-xs" readonly></div>` : ''}
                         </div>
-                        <p class="text-[10px] text-gray-500 italic -mt-2"><i class="fa-regular fa-lock mr-1"></i>Shtrix kod va 5 xonali kodni hech kim (hatto admin ham) o'zgartira olmaydi.</p>
+                        <p class="text-[10px] text-gray-500 italic -mt-2"><i class="fa-regular fa-lock mr-1"></i>Shtrix kod va 5 xonali kodni hech kim o'zgartira olmaydi.</p>
                         ` : ''}
 
                         <div>
-                            <h4 class="text-xs font-bold text-gray-600 uppercase mb-2">Mahsulotlar (o'zgartirilmaydi)</h4>
-                            <div class="space-y-2">${itemsHtml}</div>
+                            <h4 class="text-xs font-bold text-gray-600 uppercase mb-2">Mahsulotlar ${canEditProducts ? '<span class="text-emerald-600">(tahrirlash mumkin)</span>' : '(o\'zgartirilmaydi)'}</h4>
+                            <div id="uebItemsList" class="space-y-2">${itemsHtml()}</div>
                         </div>
 
-                        <div><label class="block text-xs font-bold text-gray-700 uppercase mb-1">Telefon (o'zgartirish mumkin)</label><input type="tel" id="uebTel" value="${b.tel || ''}" class="w-full border-2 border-purple-200 px-4 py-3 rounded-2xl" ${!canEdit && !isAdmin ? 'disabled' : ''}></div>
-                        <div><label class="block text-xs font-bold text-gray-700 uppercase mb-1">Manzil (o'zgartirish mumkin)</label><textarea id="uebManzil" rows="2" class="w-full border-2 border-purple-200 px-4 py-3 rounded-2xl" ${!canEdit && !isAdmin ? 'disabled' : ''}>${b.manzil || ''}</textarea></div>
-                        <div><label class="block text-xs font-bold text-gray-700 uppercase mb-1">Izoh (o'zgartirish mumkin)</label><textarea id="uebIzoh" rows="2" class="w-full border-2 border-purple-200 px-4 py-3 rounded-2xl" ${!canEdit && !isAdmin ? 'disabled' : ''}>${b.izoh || ''}</textarea></div>
-                        ${isAdmin ? `<div><label class="block text-xs font-bold text-gray-700 uppercase mb-1">Javob (admin)</label><textarea id="uebJavob" rows="2" class="w-full border-2 border-purple-200 px-4 py-3 rounded-2xl">${b.javob || ''}</textarea></div>` : ''}
+                        ${canEditProducts ? `
+                        <div class="bg-emerald-50 p-3 rounded-2xl border border-emerald-200 space-y-2">
+                            <h5 class="text-xs font-bold text-emerald-800 uppercase"><i class="fa-solid fa-plus mr-1"></i>Yangi mahsulot qo'shish</h5>
+                            <select id="uebNewProduct" class="w-full border-2 border-emerald-200 px-3 py-2 rounded-xl text-sm bg-white">${productsSelectHtml()}</select>
+                            <div class="flex gap-2">
+                                <input type="number" id="uebNewProductQty" value="1" min="1" class="w-24 border-2 border-emerald-200 px-3 py-2 rounded-xl text-sm">
+                                <button onclick="window._uebAddProduct()" class="flex-1 bg-emerald-600 text-white px-4 py-2 rounded-xl font-bold text-xs hover:bg-emerald-700">Qo'shish</button>
+                            </div>
+                        </div>
+                        ` : ''}
+
+                        <div class="bg-purple-50 p-3 rounded-2xl text-sm flex justify-between items-center font-bold">
+                            <span>Umumiy:</span>
+                            <span id="uebJami" class="text-purple-700 text-lg">${calcJami().toLocaleString()} so'm</span>
+                        </div>
+
+                        <div><label class="block text-xs font-bold text-gray-700 uppercase mb-1">Telefon</label><input type="tel" id="uebTel" value="${b.tel || ''}" class="w-full border-2 border-purple-200 px-4 py-3 rounded-2xl" ${!canEdit && !isAdmin ? 'disabled' : ''}></div>
+                        <div><label class="block text-xs font-bold text-gray-700 uppercase mb-1">Manzil</label><textarea id="uebManzil" rows="2" class="w-full border-2 border-purple-200 px-4 py-3 rounded-2xl" ${!canEdit && !isAdmin ? 'disabled' : ''}>${b.manzil || ''}</textarea></div>
+                        <div><label class="block text-xs font-bold text-gray-700 uppercase mb-1">Izoh</label><textarea id="uebIzoh" rows="2" class="w-full border-2 border-purple-200 px-4 py-3 rounded-2xl" ${!canEdit && !isAdmin ? 'disabled' : ''}>${b.izoh || ''}</textarea></div>
 
                         <div class="flex justify-end gap-3 pt-3 border-t">
                             <button onclick="closeModal()" class="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-2xl font-bold text-sm">Yopish</button>
@@ -1154,16 +1207,103 @@
                 </div>
             `;
 
+            window._uebAddProduct = function() {
+                const mId = document.getElementById('uebNewProduct').value;
+                if (!mId) { alert("Mahsulot tanlang!"); return; }
+                const qty = parseInt(document.getElementById('uebNewProductQty').value) || 1;
+                if (qty < 1) { alert("Soni 1 dan katta bo'lishi kerak!"); return; }
+                const m = mahsulotlar[mId];
+                if (!m) return;
+                const maxSoni = parseInt(m.soni) || 0;
+
+                const existingIdx = editItems.findIndex(it => it.mahsulotId === mId);
+                if (existingIdx >= 0) {
+                    const newQty = (parseInt(editItems[existingIdx].soni) || 0) + qty;
+                    if (newQty > maxSoni) { alert(`Omborda yetarli emas! (mavjud: ${maxSoni})`); return; }
+                    editItems[existingIdx].soni = newQty;
+                    editItems[existingIdx].jami = (parseInt(editItems[existingIdx].narx) || 0) * newQty;
+                } else {
+                    if (qty > maxSoni) { alert(`Omborda yetarli emas! (mavjud: ${maxSoni})`); return; }
+                    const imgs = getProductImages(m);
+                    editItems.push({
+                        mahsulotId: mId,
+                        mahsulotNomi: m.nomi,
+                        mahsulotRasm: imgs[0] || '',
+                        soni: qty,
+                        narx: parseInt(m.narx) || 0,
+                        jami: (parseInt(m.narx) || 0) * qty,
+                        turi: m.turi || 'oddiy',
+                        razmer: m.razmer || '',
+                        rang: m.rang || ''
+                    });
+                }
+                document.getElementById('uebNewProductQty').value = 1;
+                refreshUebUI();
+            };
+
             document.getElementById('uebSave')?.addEventListener('click', async () => {
                 const updateData = {
                     tel: document.getElementById('uebTel').value.trim(),
                     manzil: document.getElementById('uebManzil').value.trim(),
                     izoh: document.getElementById('uebIzoh').value.trim()
                 };
-                if (isAdmin) {
-                    const jv = document.getElementById('uebJavob');
-                    if (jv) updateData.javob = jv.value.trim();
+
+                if (canEditProducts) {
+                    if (editItems.length === 0) { alert("Kamida bitta mahsulot bo'lishi kerak!"); return; }
+
+                    const oldItems = b.items || [];
+                    const oldMap = {};
+                    oldItems.forEach(it => { if (it.mahsulotId) oldMap[it.mahsulotId] = (oldMap[it.mahsulotId] || 0) + (parseInt(it.soni) || 0); });
+
+                    const newMap = {};
+                    editItems.forEach(it => { if (it.mahsulotId) newMap[it.mahsulotId] = (newMap[it.mahsulotId] || 0) + (parseInt(it.soni) || 0); });
+
+                    // Ombordagi mavjud miqdorni tekshirish
+                    const allM = await getMahsulotlarCached(true);
+                    for (let mId in newMap) {
+                        const oldQty = oldMap[mId] || 0;
+                        const newQty = newMap[mId];
+                        if (newQty > oldQty) {
+                            const m = allM[mId];
+                            if (!m) { alert(`Mahsulot topilmadi: ${mId}`); return; }
+                            const available = (parseInt(m.soni) || 0) + oldQty;
+                            if (newQty > available) { alert(`Omborda yetarli emas: ${m.nomi || mId} (mavjud: ${available}, kerak: ${newQty})`); return; }
+                        }
+                    }
+
+                    // O'chirilgan mahsulotlarni omborga qaytarish
+                    for (let mId in oldMap) {
+                        if (!newMap[mId]) {
+                            const mSnap = await get(ref(db, `mahsulotlar/${mId}`));
+                            if (mSnap.exists()) {
+                                const m = mSnap.val();
+                                await update(ref(db, `mahsulotlar/${mId}`), { soni: (parseInt(m.soni) || 0) + oldMap[mId] });
+                            }
+                        }
+                    }
+                    // Miqdor farqini omborga qo'llash
+                    for (let mId in newMap) {
+                        const oldQty = oldMap[mId] || 0;
+                        const newQty = newMap[mId];
+                        if (newQty !== oldQty) {
+                            const mSnap = await get(ref(db, `mahsulotlar/${mId}`));
+                            if (mSnap.exists()) {
+                                const m = mSnap.val();
+                                const diff = newQty - oldQty;
+                                await update(ref(db, `mahsulotlar/${mId}`), { soni: (parseInt(m.soni) || 0) - diff });
+                            }
+                        }
+                    }
+
+                    const jami = editItems.reduce((s, it) => s + ((parseInt(it.narx) || 0) * (parseInt(it.soni) || 0)), 0);
+                    updateData.items = editItems;
+                    updateData.jami = jami;
+                    updateData.mahsulotNomi = editItems.map(i => i.mahsulotNomi).join(', ');
+                    updateData.mahsulotRasm = editItems[0]?.mahsulotRasm || '';
+
+                    CACHE.mahsulotlar = null;
                 }
+
                 await update(ref(db, `buyurtmalar/${bId}`), updateData);
                 CACHE.buyurtmalar = null; closeModal();
                 if (isAdmin) renderAdminBuyurtmalar(document.getElementById('tabContent'));
@@ -2491,6 +2631,7 @@
                             <span>Market: <b>${h.marketdanQoshish !== false ? '✅' : '❌'}</b></span>
                             <span>Tahrir: <b>${h.tahrirlashRuxsati !== false ? '✅' : '❌'}</b></span>
                             <span>O'chirish: <b>${h.ochirishRuxsati !== false ? '✅' : '❌'}</b></span>
+                            <span>Mahsulot tahrir: <b>${h.mahsulotTahrirlash === true ? '✅' : '❌'}</b></span>
                             <span>Eslatma: <b>${h.eslatma || '—'}</b></span>
                         </div>
                     </div>
@@ -2517,6 +2658,7 @@
                             <label class="flex items-center gap-2 bg-white p-2 rounded-2xl border"><input type="checkbox" id="yangiMarketdanQoshish" checked> Marketdan qo'shish</label>
                             <label class="flex items-center gap-2 bg-white p-2 rounded-2xl border"><input type="checkbox" id="yangiTahrirlashRuxsati" checked> Tahrirlash ruxsati</label>
                             <label class="flex items-center gap-2 bg-white p-2 rounded-2xl border"><input type="checkbox" id="yangiOchirishRuxsati" checked> O'chirish ruxsati</label>
+                            <label class="flex items-center gap-2 bg-white p-2 rounded-2xl border border-emerald-300"><input type="checkbox" id="yangiMahsulotTahrirlash"> Mahsulot qo'shish/o'chirish</label>
                         </div>
                         <button id="addNewHolatBtn" class="bg-indigo-600 text-white px-6 py-2.5 rounded-2xl font-bold text-xs shadow">Qo'shish</button>
                     </div>
@@ -2533,6 +2675,7 @@
                 const market = document.getElementById('yangiMarketdanQoshish').checked;
                 const tahrir = document.getElementById('yangiTahrirlashRuxsati').checked;
                 const ochirish = document.getElementById('yangiOchirishRuxsati').checked;
+                const mahsulotTahrir = document.getElementById('yangiMahsulotTahrirlash').checked;
                 if (!yozuv) { alert("Nomi kiriting!"); return; }
                 const rang = `background-color:${color}20;color:${color};border:1px solid ${color}40;`;
                 const key = 'h_' + Math.floor(1000 + Math.random() * 9000);
@@ -2540,7 +2683,8 @@
                     yozuv, rang, hex: color, eslatma: eslatma || '',
                     shtrixKorsatish: shtrix, kod5Korsatish: kod5, rasmKorsatish: rasm,
                     marketdanQoshish: market,
-                    tahrirlashRuxsati: tahrir, ochirishRuxsati: ochirish
+                    tahrirlashRuxsati: tahrir, ochirishRuxsati: ochirish,
+                    mahsulotTahrirlash: mahsulotTahrir
                 });
                 CACHE.holatlar = null; renderAdminHolatlar(container);
             });
@@ -2562,6 +2706,7 @@
                             <label class="flex items-center gap-2 bg-gray-50 p-2 rounded-xl"><input type="checkbox" id="editMarketdanQoshish" ${h.marketdanQoshish !== false ? 'checked' : ''}> Marketdan qo'shish</label>
                             <label class="flex items-center gap-2 bg-gray-50 p-2 rounded-xl"><input type="checkbox" id="editTahrirlashRuxsati" ${h.tahrirlashRuxsati !== false ? 'checked' : ''}> Tahrirlash</label>
                             <label class="flex items-center gap-2 bg-gray-50 p-2 rounded-xl"><input type="checkbox" id="editOchirishRuxsati" ${h.ochirishRuxsati !== false ? 'checked' : ''}> O'chirish</label>
+                            <label class="flex items-center gap-2 bg-emerald-50 p-2 rounded-xl col-span-2 border border-emerald-300"><input type="checkbox" id="editMahsulotTahrirlash" ${h.mahsulotTahrirlash === true ? 'checked' : ''}> <b>Buyurtmada mahsulot qo'shish/o'chirish</b></label>
                         </div>
                         <div class="flex justify-end gap-2 pt-3 border-t"><button onclick="closeModal()" class="px-5 py-2.5 bg-gray-100 rounded-2xl font-bold text-sm">Bekor</button><button onclick="saveEditedHolat('${hKey}')" class="px-6 py-2.5 bg-indigo-600 text-white rounded-2xl font-bold text-sm shadow">Saqlash</button></div>
                     </div>
@@ -2578,13 +2723,15 @@
             const market = document.getElementById('editMarketdanQoshish').checked;
             const tahrir = document.getElementById('editTahrirlashRuxsati').checked;
             const ochirish = document.getElementById('editOchirishRuxsati').checked;
+            const mahsulotTahrir = document.getElementById('editMahsulotTahrirlash').checked;
             if (!yozuv) { alert("Nomi kiriting!"); return; }
             const rang = `background-color:${color}20;color:${color};border:1px solid ${color}40;`;
             await update(ref(db, `holatlar/${hKey}`), {
                 yozuv, rang, hex: color, eslatma: eslatma || '',
                 shtrixKorsatish: shtrix, kod5Korsatish: kod5, rasmKorsatish: rasm,
                 marketdanQoshish: market,
-                tahrirlashRuxsati: tahrir, ochirishRuxsati: ochirish
+                tahrirlashRuxsati: tahrir, ochirishRuxsati: ochirish,
+                mahsulotTahrirlash: mahsulotTahrir
             });
             CACHE.holatlar = null; closeModal(); renderAdminHolatlar(document.getElementById('tabContent'));
         };
