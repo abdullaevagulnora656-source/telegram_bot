@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MyForumm</title>
+    <title>MyForumm- Market</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -31,6 +31,8 @@
         #reader { width: 100%; max-width: 400px; margin: 0 auto; }
         .readonly-field { background:#f3f4f6; color:#6b7280; cursor:not-allowed; border-color:#d1d5db !important; }
         .cart-selected { border-color:#10b981 !important; background: #ecfdf5 !important; }
+        .saving-overlay { position: fixed; top: 1rem; right: 1rem; background: #10b981; color: white; padding: 0.75rem 1.25rem; border-radius: 1rem; font-weight: 700; box-shadow: 0 10px 25px rgba(0,0,0,0.15); z-index: 200; animation: slideIn .2s ease; }
+        @keyframes slideIn { from { transform: translateX(100px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
     </style>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col">
@@ -99,6 +101,59 @@
 
         function markAsRead(itemId) {
             if (!readItems.includes(itemId)) { readItems.push(itemId); localStorage.setItem('app_read_items', JSON.stringify(readItems)); updateBadges(); }
+        }
+
+        // ============ TEZKOR RASM SIQISH ============
+        async function readFileCompressed(file, maxW = 900, maxH = 900, quality = 0.78) {
+            if (!file.type.startsWith('image/')) {
+                return new Promise((res, rej) => {
+                    const r = new FileReader();
+                    r.onload = () => res(r.result);
+                    r.onerror = rej;
+                    r.readAsDataURL(file);
+                });
+            }
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        let w = img.width, h = img.height;
+                        if (w > maxW || h > maxH) {
+                            const ratio = Math.min(maxW / w, maxH / h);
+                            w = Math.round(w * ratio);
+                            h = Math.round(h * ratio);
+                        }
+                        const c = document.createElement('canvas');
+                        c.width = w; c.height = h;
+                        const ctx = c.getContext('2d');
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillRect(0, 0, w, h);
+                        ctx.drawImage(img, 0, 0, w, h);
+                        resolve(c.toDataURL('image/jpeg', quality));
+                    };
+                    img.onerror = reject;
+                    img.src = e.target.result;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function readFilesCompressed(fileList) {
+            return Promise.all([...fileList].map(f => readFileCompressed(f)));
+        }
+
+        function quickProductId() {
+            return Math.floor(10000 + Math.random() * 90000).toString();
+        }
+
+        function showToast(msg) {
+            const t = document.createElement('div');
+            t.className = 'saving-overlay';
+            t.innerHTML = `<i class="fa-solid fa-circle-check mr-2"></i>${msg}`;
+            document.body.appendChild(t);
+            setTimeout(() => t.remove(), 1500);
         }
 
         const DEFAULT_BOLIMLAR = {
@@ -593,26 +648,30 @@
             const matn = document.getElementById('fikrMatn').value.trim();
             const rasmInput = document.getElementById('fikrRasm');
             if (!matn) { alert("Fikr matnini kiriting!"); return; }
-            async function readFile(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); }); }
             let rasmUrl = '';
-            if (rasmInput.files && rasmInput.files[0]) rasmUrl = await readFile(rasmInput.files[0]);
+            if (rasmInput.files && rasmInput.files[0]) rasmUrl = await readFileCompressed(rasmInput.files[0], 800, 800, 0.75);
             const fId = 'f_' + Math.floor(10000 + Math.random() * 90000);
             const d = new Date();
             const sana = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-            await set(ref(db, `fikrlar/${mId}/${fId}`), { id: fId, userId: user.id, matn, rasmUrl, sana, adminJavob: '' });
-            CACHE.fikrlar = null;
-            alert("Fikringiz qo'shildi!");
-            const currentModal = document.querySelector('.modal-overlay');
-            if (currentModal && currentModal.parentElement) { closeModal(); openProductFullScreen(mId); }
+            const yangiFikr = { id: fId, userId: user.id, matn, rasmUrl, sana, adminJavob: '' };
+            // Local kesh
+            if (!CACHE.fikrlar) CACHE.fikrlar = {};
+            if (!CACHE.fikrlar[mId]) CACHE.fikrlar[mId] = {};
+            CACHE.fikrlar[mId][fId] = yangiFikr;
+            closeModal(); openProductFullScreen(mId);
+            showToast("Fikr qo'shildi!");
+            // Orqa fonda
+            try { await set(ref(db, `fikrlar/${mId}/${fId}`), yangiFikr); }
+            catch(e) { alert("Xatolik: " + e.message); CACHE.fikrlar = null; }
         };
 
         window.deleteFikr = async function(mId, fId) {
             if (!confirm("Fikr o'chirilsinmi?")) return;
-            await remove(ref(db, `fikrlar/${mId}/${fId}`));
-            CACHE.fikrlar = null;
-            alert("O'chirildi!");
-            const currentModal = document.querySelector('.modal-overlay');
-            if (currentModal && currentModal.parentElement) { closeModal(); openProductFullScreen(mId); }
+            if (CACHE.fikrlar && CACHE.fikrlar[mId]) delete CACHE.fikrlar[mId][fId];
+            closeModal(); openProductFullScreen(mId);
+            showToast("O'chirildi!");
+            try { await remove(ref(db, `fikrlar/${mId}/${fId}`)); }
+            catch(e) { alert("Xatolik: " + e.message); CACHE.fikrlar = null; }
         };
 
         window.addToCart = async function(mId) {
@@ -1114,7 +1173,7 @@
             renderBuyurtmalarim(document.getElementById('tabContent'));
         };
 
-        // ==================== YANGI: SHTRIX KOD VA 5 XONALI KODNI TAHRIRLASH/QAYTA YARATISH/O'CHIRISH ====================
+        // ==================== SHTRIX / KOD5 TAHRIRLASH ====================
         window.regenerateShtrixKod = async function(type, id) {
             if (!confirm("Shtrix kod qayta yaratilsinmi? Eski kod o'chiriladi.")) return;
             const newCode = (type === 'buyurtma' ? 'UZ' : 'AR') + Date.now().toString().slice(-8) + Math.floor(10 + Math.random()*90);
@@ -1394,35 +1453,44 @@
             });
         };
 
-        // ==================== ADMIN: MAHSULOTLAR ====================
+        // ==================== ADMIN: MAHSULOTLAR (TEZKOR) ====================
         async function renderAdminMahsulotlar(container) {
             const mahsulotlar = await getMahsulotlarCached(true);
-            let listHtml = '';
-            for (let mId in mahsulotlar) {
-                const m = mahsulotlar[mId];
-                const imgs = getProductImages(m);
-                const rasm = imgs.length ? `<img src="${imgs[0]}" class="w-16 h-16 object-contain bg-gray-50 rounded-xl border img-thumb" onclick="openImageViewer(${JSON.stringify(imgs).replace(/"/g,'&quot;')},0)">` : `<div class="w-16 h-16 bg-gray-100 rounded-xl flex items-center justify-center"><i class="fa-solid fa-image text-gray-300"></i></div>`;
-                const soni = parseInt(m.soni) || 0;
-                listHtml += `
-                    <div class="border p-4 rounded-2xl bg-gray-50 flex items-center gap-3">
-                        ${rasm}
-                        <div class="flex-1">
-                            <div class="flex items-center gap-2"><h4 class="font-bold text-gray-800">${m.nomi}</h4><span class="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold">ID: ${mId}</span>
-                            ${m.turi ? `<span class="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">${m.turi}</span>` : ''}
-                            ${m.razmer ? `<span class="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">Razmer: ${m.razmer}</span>` : ''}
-                            ${m.rang ? `<span class="text-[10px] bg-pink-100 text-pink-700 px-2 py-0.5 rounded-full font-bold">Rang: ${m.rang}</span>` : ''}
+
+            function drawMahsulotlarList() {
+                let listHtml = '';
+                for (let mId in mahsulotlar) {
+                    const m = mahsulotlar[mId];
+                    const imgs = getProductImages(m);
+                    const rasm = imgs.length
+                        ? `<img src="${imgs[0]}" class="w-16 h-16 object-contain bg-gray-50 rounded-xl border img-thumb" onclick="openImageViewer(${JSON.stringify(imgs).replace(/"/g,'&quot;')},0)">`
+                        : `<div class="w-16 h-16 bg-gray-100 rounded-xl flex items-center justify-center"><i class="fa-solid fa-image text-gray-300"></i></div>`;
+                    const soni = parseInt(m.soni) || 0;
+                    listHtml += `
+                        <div class="border p-4 rounded-2xl bg-gray-50 flex items-center gap-3">
+                            ${rasm}
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <h4 class="font-bold text-gray-800">${m.nomi}</h4>
+                                    <span class="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold">ID: ${mId}</span>
+                                    ${m.turi ? `<span class="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">${m.turi}</span>` : ''}
+                                    ${m.razmer ? `<span class="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">Razmer: ${m.razmer}</span>` : ''}
+                                    ${m.rang ? `<span class="text-[10px] bg-pink-100 text-pink-700 px-2 py-0.5 rounded-full font-bold">Rang: ${m.rang}</span>` : ''}
+                                </div>
+                                <p class="text-xs text-gray-500 line-clamp-1">${m.tavsif || ''}</p>
+                                <div class="text-sm font-extrabold text-purple-700">${m.narx || 0} so'm ${m.chegirma ? `<span class="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full ml-2">-${m.chegirma}%</span>` : ''}</div>
+                                <div class="text-xs mt-1 ${soni <= 0 ? 'text-red-600 font-bold' : (soni <= 1 ? 'text-orange-600 font-bold' : 'text-emerald-700 font-semibold')}">Omborda: ${soni} dona ${soni <= 0 ? '(Tugadi)' : (soni <= 1 ? '(Oxirgi!)' : '')}</div>
                             </div>
-                            <p class="text-xs text-gray-500 line-clamp-1">${m.tavsif || ''}</p>
-                            <div class="text-sm font-extrabold text-purple-700">${m.narx || 0} so'm ${m.chegirma ? `<span class="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full ml-2">-${m.chegirma}%</span>` : ''}</div>
-                            <div class="text-xs mt-1 ${soni <= 0 ? 'text-red-600 font-bold' : (soni <= 1 ? 'text-orange-600 font-bold' : 'text-emerald-700 font-semibold')}">Omborda: ${soni} dona ${soni <= 0 ? '(Tugadi)' : (soni <= 1 ? '(Oxirgi!)' : '')}</div>
-                        </div>
-                        <div class="flex gap-1">
-                            <button onclick="openEditMahsulotModal('${mId}')" class="text-blue-600 bg-blue-50 px-3 py-1.5 rounded-2xl font-bold text-xs"><i class="fa-regular fa-pen"></i></button>
-                            <button onclick="deleteMahsulot('${mId}')" class="text-red-600 bg-red-50 px-3 py-1.5 rounded-2xl font-bold text-xs"><i class="fa-regular fa-trash"></i></button>
-                        </div>
-                    </div>
-                `;
+                            <div class="flex gap-1">
+                                <button onclick="openEditMahsulotModal('${mId}')" class="text-blue-600 bg-blue-50 px-3 py-1.5 rounded-2xl font-bold text-xs"><i class="fa-regular fa-pen"></i></button>
+                                <button onclick="deleteMahsulot('${mId}')" class="text-red-600 bg-red-50 px-3 py-1.5 rounded-2xl font-bold text-xs"><i class="fa-regular fa-trash"></i></button>
+                            </div>
+                        </div>`;
+                }
+                const el = document.getElementById('mahsulotlarList');
+                if (el) el.innerHTML = listHtml || '<p class="text-gray-400">Yo\'q</p>';
             }
+
             container.innerHTML = `
                 <div class="bg-white/70 backdrop-blur-sm p-6 rounded-3xl shadow-sm border border-purple-100 space-y-6">
                     <div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-solid fa-boxes-stacked text-purple-500 mr-3"></i>Mahsulotlar boshqaruvi</h2><p class="text-sm text-gray-500">Kiritish, tahrirlash, rasm, soni, tur, razmer, rang</p></div>
@@ -1449,10 +1517,14 @@
                         <div><label class="text-xs text-gray-500 font-bold">Rasmlar (bir nechta tanlash mumkin)</label><input type="file" accept="image/*" multiple id="yangiMahsulotRasm" class="w-full border-2 border-purple-200 p-1 rounded-xl bg-white file-input"></div>
                         <button id="addMahsulotBtn" class="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-2.5 rounded-2xl font-bold text-xs shadow hover:shadow-lg">Qo'shish</button>
                     </div>
-                    <div class="space-y-3"><h4 class="text-sm font-bold">Mavjud mahsulotlar</h4>${listHtml || '<p class="text-gray-400">Yo‘q</p>'}</div>
+                    <div class="space-y-3"><h4 class="text-sm font-bold">Mavjud mahsulotlar</h4><div id="mahsulotlarList"></div></div>
                 </div>
             `;
-            document.getElementById('addMahsulotBtn').addEventListener('click', async () => {
+            drawMahsulotlarList();
+
+            // ============ TEZKOR QO'SHISH ============
+            document.getElementById('addMahsulotBtn').addEventListener('click', async (e) => {
+                const btn = e.currentTarget;
                 const nomi = document.getElementById('yangiMahsulotNomi').value.trim();
                 const tavsif = document.getElementById('yangiMahsulotTavsif').value.trim();
                 const narx = document.getElementById('yangiMahsulotNarx').value.trim();
@@ -1463,16 +1535,56 @@
                 const razmer = document.getElementById('yangiMahsulotRazmer').value.trim();
                 const rang = document.getElementById('yangiMahsulotRang').value.trim();
                 const rasmInput = document.getElementById('yangiMahsulotRasm');
+
                 if (!nomi) { alert("Nomi kiriting!"); return; }
                 if (!narx) { alert("Narx kiriting!"); return; }
                 if (!soni || parseInt(soni) < 0) { alert("Soni kiriting!"); return; }
-                async function readFile(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); }); }
+
+                btn.disabled = true; btn.innerText = "Saqlanmoqda...";
+
                 let rasmUrls = [];
-                if (rasmInput.files && rasmInput.files.length) { for (let f of rasmInput.files) { rasmUrls.push(await readFile(f)); } }
-                let mId; let exists = true;
-                while (exists) { mId = Math.floor(10000 + Math.random() * 90000).toString(); const s = await get(ref(db, `mahsulotlar/${mId}`)); exists = s.exists(); }
-                await set(ref(db, `mahsulotlar/${mId}`), { id: mId, nomi, tavsif, narx, eskiNarx, chegirma, rasmUrls, rasmUrl: rasmUrls[0] || '', soni: parseInt(soni) || 0, turi, razmer, rang, sana: new Date().toISOString(), korinsin: true });
-                CACHE.mahsulotlar = null; alert(`Qo'shildi! ID: ${mId}`); renderAdminMahsulotlar(container);
+                if (rasmInput.files && rasmInput.files.length) {
+                    rasmUrls = await readFilesCompressed(rasmInput.files);
+                }
+
+                let mId;
+                do { mId = quickProductId(); } while (CACHE.mahsulotlar && CACHE.mahsulotlar[mId]);
+
+                const yangi = {
+                    id: mId, nomi, tavsif, narx, eskiNarx, chegirma,
+                    rasmUrls, rasmUrl: rasmUrls[0] || '',
+                    soni: parseInt(soni) || 0, turi, razmer, rang,
+                    sana: new Date().toISOString(), korinsin: true
+                };
+
+                // 1) Lokal keshga darhol yozamiz
+                if (!CACHE.mahsulotlar) CACHE.mahsulotlar = {};
+                CACHE.mahsulotlar[mId] = yangi;
+                mahsulotlar[mId] = yangi;
+                drawMahsulotlarList();
+
+                // 2) Formani tozalash
+                document.getElementById('yangiMahsulotNomi').value = '';
+                document.getElementById('yangiMahsulotTavsif').value = '';
+                document.getElementById('yangiMahsulotNarx').value = '';
+                document.getElementById('yangiMahsulotEskiNarx').value = '';
+                document.getElementById('yangiMahsulotChegirma').value = '';
+                document.getElementById('yangiMahsulotSoni').value = '1';
+                document.getElementById('yangiMahsulotRazmer').value = '';
+                document.getElementById('yangiMahsulotRang').value = '';
+                document.getElementById('yangiMahsulotRasm').value = '';
+                btn.disabled = false; btn.innerText = "Qo'shish";
+                showToast(`Qo'shildi! ID: ${mId}`);
+
+                // 3) Orqa fonda bazaga yozamiz
+                try {
+                    await set(ref(db, `mahsulotlar/${mId}`), yangi);
+                } catch (err) {
+                    alert("Bazaga saqlashda xatolik: " + err.message);
+                    delete CACHE.mahsulotlar[mId];
+                    delete mahsulotlar[mId];
+                    drawMahsulotlarList();
+                }
             });
         }
 
@@ -1515,15 +1627,29 @@
             `;
         };
 
+        // ============ TEZKOR RASM O'CHIRISH ============
         window.removeMahsulotRasm = async function(mId, idx) {
-            const m = (await getMahsulotlarCached(true))[mId]; if (!m) return;
+            const m = (await getMahsulotlarCached(true))[mId];
+            if (!m) return;
             const imgs = getProductImages(m);
             imgs.splice(idx, 1);
-            await update(ref(db, `mahsulotlar/${mId}`), { rasmUrls: imgs, rasmUrl: imgs[0] || '' });
-            CACHE.mahsulotlar = null;
-            closeModal(); openEditMahsulotModal(mId);
+
+            // 1) Lokal keshni darhol yangilash
+            CACHE.mahsulotlar[mId] = { ...m, rasmUrls: imgs, rasmUrl: imgs[0] || '' };
+            closeModal();
+            openEditMahsulotModal(mId);
+            showToast("Rasm o'chirildi!");
+
+            // 2) Orqa fonda saqlash
+            try {
+                await update(ref(db, `mahsulotlar/${mId}`), { rasmUrls: imgs, rasmUrl: imgs[0] || '' });
+            } catch (err) {
+                alert("Xatolik: " + err.message);
+                CACHE.mahsulotlar = null;
+            }
         };
 
+        // ============ TEZKOR TAHRIRLASH ============
         window.saveEditedMahsulot = async function(mId) {
             const nomi = document.getElementById('editMahsulotNomi').value.trim();
             const tavsif = document.getElementById('editMahsulotTavsif').value.trim();
@@ -1535,16 +1661,57 @@
             const razmer = document.getElementById('editMahsulotRazmer').value.trim();
             const rang = document.getElementById('editMahsulotRang').value.trim();
             const rasmInput = document.getElementById('editMahsulotRasm');
+
             if (!nomi) { alert("Nomi kiriting!"); return; }
-            async function readFile(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); }); }
-            const mahsulotlar = await getMahsulotlarCached(true); const eski = mahsulotlar[mId] || {};
+
+            const mahsulotlar = await getMahsulotlarCached(true);
+            const eski = mahsulotlar[mId] || {};
             let rasmUrls = getProductImages(eski);
-            if (rasmInput.files && rasmInput.files.length) { for (let f of rasmInput.files) rasmUrls.push(await readFile(f)); }
-            await update(ref(db, `mahsulotlar/${mId}`), { nomi, tavsif, narx, eskiNarx, chegirma, soni: parseInt(soni) || 0, turi, razmer, rang, rasmUrls, rasmUrl: rasmUrls[0] || '' });
-            CACHE.mahsulotlar = null; closeModal(); renderAdminMahsulotlar(document.getElementById('tabContent'));
+
+            // Yangi rasmlar (parallel siqish)
+            if (rasmInput.files && rasmInput.files.length) {
+                const yangiRasmlar = await readFilesCompressed(rasmInput.files);
+                rasmUrls = rasmUrls.concat(yangiRasmlar);
+            }
+
+            const yangilangan = {
+                nomi, tavsif, narx, eskiNarx, chegirma,
+                soni: parseInt(soni) || 0, turi, razmer, rang,
+                rasmUrls, rasmUrl: rasmUrls[0] || ''
+            };
+
+            // 1) Lokal keshni darhol yangilash
+            CACHE.mahsulotlar[mId] = { ...eski, ...yangilangan };
+            closeModal();
+            renderAdminMahsulotlar(document.getElementById('tabContent'));
+            showToast("Saqlandi!");
+
+            // 2) Orqa fonda saqlash
+            try {
+                await update(ref(db, `mahsulotlar/${mId}`), yangilangan);
+            } catch (err) {
+                alert("Saqlashda xatolik: " + err.message);
+                CACHE.mahsulotlar = null;
+                renderAdminMahsulotlar(document.getElementById('tabContent'));
+            }
         };
 
-        window.deleteMahsulot = async function(mId) { if (confirm("O'chirilsin?")) { await remove(ref(db, `mahsulotlar/${mId}`)); CACHE.mahsulotlar = null; renderAdminMahsulotlar(document.getElementById('tabContent')); } };
+        // ============ TEZKOR O'CHIRISH ============
+        window.deleteMahsulot = async function(mId) {
+            if (!confirm("O'chirilsin?")) return;
+            // 1) Lokal keshdan darhol o'chirish
+            if (CACHE.mahsulotlar) delete CACHE.mahsulotlar[mId];
+            renderAdminMahsulotlar(document.getElementById('tabContent'));
+            showToast("O'chirildi!");
+            // 2) Orqa fonda bazadan o'chirish
+            try {
+                await remove(ref(db, `mahsulotlar/${mId}`));
+            } catch (err) {
+                alert("O'chirishda xatolik: " + err.message);
+                CACHE.mahsulotlar = null;
+                renderAdminMahsulotlar(document.getElementById('tabContent'));
+            }
+        };
 
         // ==================== ADMIN: FIKRLAR ====================
         async function renderAdminFikrlar(container) {
@@ -2216,13 +2383,23 @@
                 const inputs = document.querySelectorAll('.ariza-field');
                 const checkboxGroups = document.querySelectorAll('.ariza-field.checkbox-group');
                 let data = {};
-                async function readFile(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); }); }
                 for (let inp of inputs) {
                     if (inp.classList.contains('checkbox-group')) continue;
                     const fid = inp.dataset.fid, ftype = inp.dataset.ftype, req = inp.dataset.req === 'true';
                     if (['rasm','video','file','rasm_tushish','galereyadan'].includes(ftype)) {
                         if (inp.files && inp.files.length) {
-                            let files = []; for (let f of inp.files) { try { const b64 = await readFile(f); files.push({ nomi: f.name, url: b64 }); } catch(e) {} }
+                            let files = [];
+                            for (let f of inp.files) {
+                                try {
+                                    if (ftype === 'video') {
+                                        const b64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f); });
+                                        files.push({ nomi: f.name, url: b64 });
+                                    } else {
+                                        const b64 = await readFileCompressed(f, 900, 900, 0.78);
+                                        files.push({ nomi: f.name, url: b64 });
+                                    }
+                                } catch(e) {}
+                            }
                             data[fid] = { turi: ftype, multiple: files.length > 1 || inp.multiple, files, nomi: files[0]?.nomi || '', url: files[0]?.url || '' };
                         } else { if (req) { alert("Majburiy fayl maydoni!"); return; } data[fid] = { turi: ftype, multiple: false, files: [], nomi: "", url: "" }; }
                     } else {
@@ -2360,7 +2537,7 @@
 
         window.userDeleteAriza = async function(id) { if (confirm("O'chirilsin?")) { await remove(ref(db, `arizalar/${id}`)); CACHE.arizalar = null; renderArizalarim(document.getElementById('tabContent')); } };
 
-        // ==================== ARIZA TAHRIRLASH MODAL (admin: shtrix va kod5 tahrirlaydi) ====================
+        // ==================== ARIZA TAHRIRLASH MODAL ====================
         window.openUserEditModal = async function(arizaId) {
             const user = await getCurrentUser();
             const arizalar = await getArizalarCached(); const a = arizalar[arizaId]; if (!a) return;
@@ -2473,13 +2650,23 @@
             const inputs = document.querySelectorAll('.edit-ariza-field');
             const checkboxGroups = document.querySelectorAll('.edit-ariza-field.checkbox-group');
             let updated = { ...a.qiymatlar };
-            async function readFile(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); }); }
             for (let inp of inputs) {
                 if (inp.classList.contains('checkbox-group')) continue;
                 const fid = inp.dataset.fid, ftype = inp.dataset.ftype, req = inp.dataset.req === 'true';
                 if (['rasm','video','file','rasm_tushish','galereyadan'].includes(ftype)) {
                     if (inp.files && inp.files.length) {
-                        let files = []; for (let f of inp.files) { try { const b64 = await readFile(f); files.push({ nomi: f.name, url: b64 }); } catch(e) {} }
+                        let files = [];
+                        for (let f of inp.files) {
+                            try {
+                                if (ftype === 'video') {
+                                    const b64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f); });
+                                    files.push({ nomi: f.name, url: b64 });
+                                } else {
+                                    const b64 = await readFileCompressed(f, 900, 900, 0.78);
+                                    files.push({ nomi: f.name, url: b64 });
+                                }
+                            } catch(e) {}
+                        }
                         updated[fid] = { turi: ftype, multiple: files.length > 1 || inp.multiple, files, nomi: files[0]?.nomi || '', url: files[0]?.url || '' };
                     }
                 } else {
@@ -2557,12 +2744,23 @@
                 const turKey = document.getElementById('selectSorovnomaTuri').value; if (!turKey) return;
                 const inputs = document.querySelectorAll('.sorov-field');
                 let data = {};
-                async function readFile(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); }); }
                 for (let inp of inputs) {
                     if (inp.classList.contains('checkbox-group')) continue;
                     const fid = inp.dataset.fid, ftype = inp.dataset.ftype, req = inp.dataset.req === 'true';
                     if (['rasm','video','file','rasm_tushish','galereyadan'].includes(ftype)) {
-                        if (inp.files && inp.files.length) { let files = []; for (let f of inp.files) { const b64 = await readFile(f); files.push({ nomi: f.name, url: b64 }); } data[fid] = { turi: ftype, multiple: files.length > 1 || inp.multiple, files, nomi: files[0]?.nomi || '', url: files[0]?.url || '' }; }
+                        if (inp.files && inp.files.length) {
+                            let files = [];
+                            for (let f of inp.files) {
+                                if (ftype === 'video') {
+                                    const b64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f); });
+                                    files.push({ nomi: f.name, url: b64 });
+                                } else {
+                                    const b64 = await readFileCompressed(f, 900, 900, 0.78);
+                                    files.push({ nomi: f.name, url: b64 });
+                                }
+                            }
+                            data[fid] = { turi: ftype, multiple: files.length > 1 || inp.multiple, files, nomi: files[0]?.nomi || '', url: files[0]?.url || '' };
+                        }
                         else { if (req) { alert("Majburiy fayl!"); return; } data[fid] = { turi: ftype, multiple: false, files: [], nomi: "", url: "" }; }
                     } else {
                         if (req && !inp.value.trim()) { alert("Majburiy maydon!"); return; }
@@ -3152,10 +3350,9 @@
                 const sarlavha = document.getElementById('adminYangilikSarlavha').value.trim(); const matn = document.getElementById('adminYangilikMatn').value.trim();
                 const rasmInput = document.getElementById('adminYangilikRasm'); const videoInput = document.getElementById('adminYangilikVideo');
                 if (!sarlavha || !matn) { alert("To‘ldiring!"); return; }
-                async function readFile(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); }); }
                 let rasmUrl = '', videoUrl = '';
-                if (rasmInput.files && rasmInput.files[0]) rasmUrl = await readFile(rasmInput.files[0]);
-                if (videoInput.files && videoInput.files[0]) videoUrl = await readFile(videoInput.files[0]);
+                if (rasmInput.files && rasmInput.files[0]) rasmUrl = await readFileCompressed(rasmInput.files[0], 1000, 1000, 0.78);
+                if (videoInput.files && videoInput.files[0]) videoUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(videoInput.files[0]); });
                 const d = new Date(); const sana = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`; const vaqt = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
                 await push(ref(db, 'yangiliklar'), { sarlavha, matn, rasmUrl, videoUrl, sana, vaqt });
                 CACHE.yangiliklar = null; alert("Qo'shildi!"); renderAdminYangilikManagement(container);
@@ -3179,11 +3376,10 @@
         window.saveEditedYangilik = async function(yKey) {
             const sarlavha = document.getElementById('editYangilikSarlavha').value.trim(); const matn = document.getElementById('editYangilikMatn').value.trim();
             const rasmInput = document.getElementById('editYangilikRasm'); const videoInput = document.getElementById('editYangilikVideo');
-            async function readFile(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); }); }
             const yangiliklar = await getYangiliklarCached(); const eski = yangiliklar[yKey] || {};
             let rasmUrl = eski.rasmUrl || '', videoUrl = eski.videoUrl || '';
-            if (rasmInput.files && rasmInput.files[0]) rasmUrl = await readFile(rasmInput.files[0]);
-            if (videoInput.files && videoInput.files[0]) videoUrl = await readFile(videoInput.files[0]);
+            if (rasmInput.files && rasmInput.files[0]) rasmUrl = await readFileCompressed(rasmInput.files[0], 1000, 1000, 0.78);
+            if (videoInput.files && videoInput.files[0]) videoUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(videoInput.files[0]); });
             await update(ref(db, `yangiliklar/${yKey}`), { sarlavha, matn, rasmUrl, videoUrl });
             CACHE.yangiliklar = null; closeModal(); renderAdminYangilikManagement(document.getElementById('tabContent'));
         };
@@ -3225,10 +3421,9 @@
             const nomi = document.getElementById(`xabarNomi_${bKey}`).value.trim(); const matn = document.getElementById(`xabarMatni_${bKey}`).value.trim(); const target = document.getElementById(`xabarTarget_${bKey}`).value;
             const rasmInput = document.getElementById(`xabarRasm_${bKey}`); const videoInput = document.getElementById(`xabarVideo_${bKey}`);
             if (!nomi || !matn) { alert("To‘ldiring!"); return; }
-            async function readFile(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); }); }
             let rasmUrl = '', videoUrl = '';
-            if (rasmInput.files && rasmInput.files[0]) rasmUrl = await readFile(rasmInput.files[0]);
-            if (videoInput.files && videoInput.files[0]) videoUrl = await readFile(videoInput.files[0]);
+            if (rasmInput.files && rasmInput.files[0]) rasmUrl = await readFileCompressed(rasmInput.files[0], 1000, 1000, 0.78);
+            if (videoInput.files && videoInput.files[0]) videoUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(videoInput.files[0]); });
             await push(ref(db, `xabarlarBolimlari/${bKey}/xabarlar`), { nomi, matn, targetId: target || '', rasmUrl, videoUrl, sana: new Date().toLocaleString() });
             CACHE.xabarlar = null; alert("Yuborildi!"); loadAdminBolimlarList();
         };
@@ -3252,11 +3447,10 @@
         window.saveEditedXabar = async function(bKey, xKey) {
             const nomi = document.getElementById('editXabarNomi').value.trim(); const target = document.getElementById('editXabarTarget').value; const matn = document.getElementById('editXabarMatni').value.trim();
             const rasmInput = document.getElementById('editXabarRasm'); const videoInput = document.getElementById('editXabarVideo');
-            async function readFile(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); }); }
             const bolimlar = await getXabarlarCached(); const eski = bolimlar[bKey]?.xabarlar?.[xKey] || {};
             let rasmUrl = eski.rasmUrl || '', videoUrl = eski.videoUrl || '';
-            if (rasmInput.files && rasmInput.files[0]) rasmUrl = await readFile(rasmInput.files[0]);
-            if (videoInput.files && videoInput.files[0]) videoUrl = await readFile(videoInput.files[0]);
+            if (rasmInput.files && rasmInput.files[0]) rasmUrl = await readFileCompressed(rasmInput.files[0], 1000, 1000, 0.78);
+            if (videoInput.files && videoInput.files[0]) videoUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(videoInput.files[0]); });
             await update(ref(db, `xabarlarBolimlari/${bKey}/xabarlar/${xKey}`), { nomi, matn, targetId: target || '', rasmUrl, videoUrl });
             CACHE.xabarlar = null; closeModal(); loadAdminBolimlarList();
         };
