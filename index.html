@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Xavfsiz ID · Uzum Market</title>
+    <title>MyForumm</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -53,6 +53,30 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
+
+        function playBeep(times = 3, freq = 1200, dur = 100, gap = 80) {
+            try {
+                const Ctx = window.AudioContext || window.webkitAudioContext;
+                if (!Ctx) return;
+                const ctx = new Ctx();
+                let start = ctx.currentTime;
+                for (let i = 0; i < times; i++) {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'square';
+                    osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(0.0001, start);
+                    gain.gain.exponentialRampToValueAtTime(0.35, start + 0.01);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, start + dur / 1000);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(start);
+                    osc.stop(start + dur / 1000);
+                    start += (dur + gap) / 1000;
+                }
+                setTimeout(() => { try { ctx.close(); } catch (e) {} }, (times * (dur + gap)) + 300);
+            } catch (e) { console.warn('Beep error:', e); }
+        }
 
         const CACHE = { user: null, arizaTurlari: null, arizalar: null, yangiliklar: null, holatlar: null, users: null, xabarlar: null, sorovnomalar: null, sorovnomaTurlari: null, mahsulotlar: null, buyurtmalar: null, adminRuxsatlar: null, bolimSozlamalari: null, buyurtmaMaydonlar: null, fikrlar: null };
         let profiles = JSON.parse(localStorage.getItem('app_profiles')) || [];
@@ -604,7 +628,7 @@
             alert(`Savatga qo'shildi: ${m.nomi}`);
         };
 
-        // ============= SAVAT (Checkbox bilan) =============
+        // ============= SAVAT =============
         async function renderSavat(container) {
             const user = await getCurrentUser(); if (!user) return;
             const mahsulotlar = await getMahsulotlarCached(true);
@@ -718,7 +742,7 @@
             renderSavat(document.getElementById('tabContent'));
         };
 
-        // ============= CHECKOUT (faqat tanlanganlar) =============
+        // ============= CHECKOUT =============
         window.openCheckoutModal = async function() {
             const user = await getCurrentUser(); if (!user) return;
             const selectedIds = Object.keys(savatSelected).filter(id => savat[id]);
@@ -824,7 +848,6 @@
             await set(ref(db, `buyurtmalar/${raqam}`), yeni);
             CACHE.buyurtmalar = null; CACHE.mahsulotlar = null;
 
-            // Faqat tanlangan mahsulotlarni savatdan o'chirish
             for (let mId of selectedIds) { delete savat[mId]; delete savatSelected[mId]; }
             saveSavat(); saveSavatSelected(); closeModal();
             renderBuyurtmaTabrik(document.getElementById('tabContent'), yeni);
@@ -857,7 +880,7 @@
             document.getElementById('downloadScreenshotBtn').addEventListener('click', () => { html2canvas(document.getElementById('printArea')).then(canvas => { const a = document.createElement('a'); a.download = `Buyurtma_${b.id}.png`; a.href = canvas.toDataURL(); a.click(); }); });
         }
 
-        // ============= SINGLE BUYURTMA MODAL (bitta mahsulot uchun) =============
+        // ============= SINGLE BUYURTMA MODAL =============
         window.openBuyurtmaModal = async function(mId) {
             const mahsulotlar = await getMahsulotlarCached();
             const m = mahsulotlar[mId]; if (!m) return;
@@ -952,7 +975,7 @@
             });
         };
 
-        // ==================== BUYURTMALARIM (barcha items ko'rsatiladi) ====================
+        // ==================== BUYURTMALARIM ====================
         async function renderBuyurtmalarim(container) {
             const user = await getCurrentUser(); if (!user) return;
             const buyurtmalar = await getBuyurtmalarCached(true);
@@ -973,7 +996,6 @@
                     const searchText = `${b.id} ${b.kod5 || ''} ${b.shtrixKod || ''} ${b.mahsulotNomi} ${b.holat} ${b.tel} ${b.manzil}`;
                     if (f && !searchText.toLowerCase().includes(f)) continue;
                     found = true;
-                    const rasm = b.mahsulotRasm ? `<img src="${b.mahsulotRasm}" class="w-20 h-20 object-contain bg-gray-50 rounded-xl border">` : `<div class="w-20 h-20 bg-gray-100 rounded-xl flex items-center justify-center"><i class="fa-solid fa-image text-gray-300"></i></div>`;
                     const javobHtml = b.javob ? `<div class="bg-purple-50/60 border border-purple-200 p-3 rounded-2xl space-y-1"><div class="text-purple-700 font-bold text-xs uppercase"><i class="fa-regular fa-circle-info mr-1"></i>Javob:</div><p class="text-sm text-purple-900 whitespace-pre-wrap">${b.javob}</p></div>` : '';
 
                     let holatData = null;
@@ -989,7 +1011,6 @@
                     let kod5Html = showKod5 ? `<div class="text-center"><div class="text-[10px] uppercase font-bold text-amber-700">5 xonali kod</div><div class="text-xl font-extrabold text-amber-800 tracking-widest">${b.kod5 || '—'}</div></div>` : '';
                     let eslatmaHtml = eslatma ? `<div class="bg-yellow-50 border border-yellow-200 p-2 rounded-xl text-xs text-yellow-800"><i class="fa-regular fa-note-sticky mr-1"></i>${eslatma}</div>` : '';
 
-                    // Fikrlar soni
                     let fikrlarHtml = '';
                     if (b.items && b.items.length) {
                         b.items.forEach(it => {
@@ -1008,7 +1029,6 @@
                             ${canDelete ? `<button onclick="userDeleteBuyurtma('${id}')" class="bg-red-50 text-red-600 px-3 py-1 rounded-2xl text-xs font-bold hover:bg-red-100"><i class="fa-regular fa-trash"></i></button>` : ''}
                         </div>` : '';
 
-                    // ITEMS ro'yxati (barcha mahsulotlar)
                     let itemsListHtml = '';
                     const items = b.items || [{ mahsulotId: '', mahsulotNomi: b.mahsulotNomi, soni: b.soni, narx: b.narx, jami: b.jami, mahsulotRasm: b.mahsulotRasm }];
                     itemsListHtml = `
@@ -1094,7 +1114,54 @@
             renderBuyurtmalarim(document.getElementById('tabContent'));
         };
 
-        // ==================== USER EDIT BUYURTMA (mahsulot tahrirlash holatga bog'liq) ====================
+        // ==================== YANGI: SHTRIX KOD VA 5 XONALI KODNI TAHRIRLASH/QAYTA YARATISH/O'CHIRISH ====================
+        window.regenerateShtrixKod = async function(type, id) {
+            if (!confirm("Shtrix kod qayta yaratilsinmi? Eski kod o'chiriladi.")) return;
+            const newCode = (type === 'buyurtma' ? 'UZ' : 'AR') + Date.now().toString().slice(-8) + Math.floor(10 + Math.random()*90);
+            const path = type === 'buyurtma' ? `buyurtmalar/${id}` : `arizalar/${id}`;
+            await update(ref(db, path), { shtrixKod: newCode });
+            if (type === 'buyurtma') CACHE.buyurtmalar = null; else CACHE.arizalar = null;
+            alert("Yangi shtrix kod: " + newCode);
+            if (type === 'buyurtma') renderBuyurtmalarim(document.getElementById('tabContent'));
+            else renderArizalarim(document.getElementById('tabContent'));
+            closeModal();
+        };
+
+        window.deleteShtrixKod = async function(type, id) {
+            if (!confirm("Shtrix kod o'chirilsinmi?")) return;
+            const path = type === 'buyurtma' ? `buyurtmalar/${id}` : `arizalar/${id}`;
+            await update(ref(db, path), { shtrixKod: '' });
+            if (type === 'buyurtma') CACHE.buyurtmalar = null; else CACHE.arizalar = null;
+            alert("Shtrix kod o'chirildi!");
+            if (type === 'buyurtma') renderBuyurtmalarim(document.getElementById('tabContent'));
+            else renderArizalarim(document.getElementById('tabContent'));
+            closeModal();
+        };
+
+        window.regenerateKod5 = async function(type, id) {
+            if (!confirm("5 xonali kod qayta yaratilsinmi?")) return;
+            const newCode = await generateKod5();
+            const path = type === 'buyurtma' ? `buyurtmalar/${id}` : `arizalar/${id}`;
+            await update(ref(db, path), { kod5: newCode });
+            if (type === 'buyurtma') CACHE.buyurtmalar = null; else CACHE.arizalar = null;
+            alert("Yangi 5 xonali kod: " + newCode);
+            if (type === 'buyurtma') renderBuyurtmalarim(document.getElementById('tabContent'));
+            else renderArizalarim(document.getElementById('tabContent'));
+            closeModal();
+        };
+
+        window.deleteKod5 = async function(type, id) {
+            if (!confirm("5 xonali kod o'chirilsinmi?")) return;
+            const path = type === 'buyurtma' ? `buyurtmalar/${id}` : `arizalar/${id}`;
+            await update(ref(db, path), { kod5: '' });
+            if (type === 'buyurtma') CACHE.buyurtmalar = null; else CACHE.arizalar = null;
+            alert("5 xonali kod o'chirildi!");
+            if (type === 'buyurtma') renderBuyurtmalarim(document.getElementById('tabContent'));
+            else renderArizalarim(document.getElementById('tabContent'));
+            closeModal();
+        };
+
+        // ==================== TAHRIRLASH MODAL: BUYURTMA ====================
         window.openUserEditBuyurtmaModal = async function(bId) {
             const user = await getCurrentUser();
             const all = await getBuyurtmalarCached(true);
@@ -1106,23 +1173,16 @@
             const canEdit = holatData ? holatData.tahrirlashRuxsati !== false : true;
             const showKod5 = holatData ? holatData.kod5Korsatish !== false : true;
             const showShtrix = holatData ? holatData.shtrixKorsatish !== false : true;
-            // FAQAT holatda "mahsulotTahrirlash" true bo'lsa ochiladi
             const canEditProducts = holatData ? holatData.mahsulotTahrirlash === true : false;
 
             if (!canEdit && !isAdmin) { alert("Bu holatda tahrirlash mumkin emas!"); return; }
             if (!isAdmin && b.userId !== user.id) { alert("Huquq yo'q"); return; }
 
             const mahsulotlar = await getMahsulotlarCached(true);
-
-            // Ishchi nusxa
             let editItems = JSON.parse(JSON.stringify(b.items || [{ mahsulotId: '', mahsulotNomi: b.mahsulotNomi, soni: b.soni, narx: b.narx, jami: b.jami }]));
-
             const modal = document.getElementById('modalContainer');
 
-            function calcJami() {
-                return editItems.reduce((s, it) => s + ((parseInt(it.narx) || 0) * (parseInt(it.soni) || 0)), 0);
-            }
-
+            function calcJami() { return editItems.reduce((s, it) => s + ((parseInt(it.narx) || 0) * (parseInt(it.soni) || 0)), 0); }
             function itemsHtml() {
                 return editItems.map((it, idx) => `
                     <div class="border-2 border-gray-200 p-3 rounded-2xl space-y-2 bg-gray-50">
@@ -1137,7 +1197,6 @@
                     </div>
                 `).join('') || '<p class="text-xs text-gray-400 text-center py-2">Mahsulotlar yo\'q</p>';
             }
-
             function productsSelectHtml() {
                 let opts = '<option value="">-- Mahsulot tanlang --</option>';
                 for (let mId in mahsulotlar) {
@@ -1148,31 +1207,52 @@
                 }
                 return opts;
             }
-
             function refreshUebUI() {
                 const listEl = document.getElementById('uebItemsList');
                 if (listEl) listEl.innerHTML = itemsHtml();
                 const jamiEl = document.getElementById('uebJami');
                 if (jamiEl) jamiEl.textContent = calcJami().toLocaleString() + " so'm";
             }
+            window._uebRemoveItem = function(idx) { editItems.splice(idx, 1); refreshUebUI(); };
 
-            window._uebRemoveItem = function(idx) {
-                editItems.splice(idx, 1);
-                refreshUebUI();
-            };
+            const adminOnlyKodControls = isAdmin ? `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 bg-amber-50 p-3 rounded-2xl border-2 border-amber-300">
+                    <div>
+                        <label class="text-[10px] font-bold uppercase text-amber-700">5 xonali kod ${showKod5 ? '' : '<span class="text-red-500">(yashirilgan)</span>'}</label>
+                        <input type="text" id="uebKod5Input" value="${b.kod5 || ''}" class="w-full border-2 border-amber-300 px-3 py-2 rounded-xl font-bold tracking-widest bg-white">
+                        <div class="flex gap-1 mt-1 flex-wrap">
+                            <button onclick="saveUebKod5('${bId}')" class="bg-emerald-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold">💾 Saqlash</button>
+                            <button onclick="regenerateKod5('buyurtma','${bId}')" class="bg-blue-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold">🔄 Qayta</button>
+                            <button onclick="deleteKod5('buyurtma','${bId}')" class="bg-red-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold">🗑 O'chirish</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold uppercase text-amber-700">Shtrix kod ${showShtrix ? '' : '<span class="text-red-500">(yashirilgan)</span>'}</label>
+                        <input type="text" id="uebShtrixInput" value="${b.shtrixKod || ''}" class="w-full border-2 border-amber-300 px-3 py-2 rounded-xl text-xs bg-white">
+                        <div class="flex gap-1 mt-1 flex-wrap">
+                            <button onclick="saveUebShtrix('${bId}')" class="bg-emerald-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold">💾 Saqlash</button>
+                            <button onclick="regenerateShtrixKod('buyurtma','${bId}')" class="bg-blue-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold">🔄 Qayta</button>
+                            <button onclick="deleteShtrixKod('buyurtma','${bId}')" class="bg-red-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold">🗑 O'chirish</button>
+                        </div>
+                    </div>
+                    <div class="md:col-span-2 text-[10px] text-gray-500 italic"><i class="fa-solid fa-shield-halved mr-1"></i>Faqat admin shtrix va 5 xonali kodni o'zgartira oladi.</div>
+                </div>
+            ` : `
+                ${(showKod5 || showShtrix) ? `
+                <div class="grid grid-cols-2 gap-2 bg-amber-50 p-3 rounded-2xl border border-amber-200">
+                    ${showKod5 ? `<div><label class="text-[10px] font-bold uppercase text-amber-700">5 xonali kod</label><input type="text" value="${b.kod5 || ''}" class="w-full border-2 readonly-field px-3 py-2 rounded-xl font-bold tracking-widest" readonly></div>` : ''}
+                    ${showShtrix ? `<div><label class="text-[10px] font-bold uppercase text-amber-700">Shtrix kod</label><input type="text" value="${b.shtrixKod || ''}" class="w-full border-2 readonly-field px-3 py-2 rounded-xl text-xs" readonly></div>` : ''}
+                </div>
+                <p class="text-[10px] text-gray-500 italic -mt-2"><i class="fa-regular fa-lock mr-1"></i>Faqat admin o'zgartirishi mumkin.</p>
+                ` : ''}
+            `;
 
             modal.innerHTML = `
                 <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto modal-overlay">
                     <div class="bg-white p-6 md:p-8 rounded-3xl shadow-2xl w-full max-w-lg space-y-4 max-h-[90vh] overflow-y-auto border border-purple-100">
-                        <div class="flex justify-between items-center border-b pb-3"><h3 class="text-2xl font-bold text-gray-800">Buyurtmani ko'rish</h3><button onclick="closeModal()" class="text-gray-400 hover:text-gray-700 text-2xl font-bold px-2">&times;</button></div>
+                        <div class="flex justify-between items-center border-b pb-3"><h3 class="text-2xl font-bold text-gray-800">Buyurtmani tahrirlash №${b.id}</h3><button onclick="closeModal()" class="text-gray-400 hover:text-gray-700 text-2xl font-bold px-2">&times;</button></div>
 
-                        ${(showKod5 || showShtrix) ? `
-                        <div class="grid grid-cols-2 gap-2 bg-amber-50 p-3 rounded-2xl border border-amber-200">
-                            ${showKod5 ? `<div><label class="text-[10px] font-bold uppercase text-amber-700">5 xonali kod</label><input type="text" value="${b.kod5 || ''}" class="w-full border-2 readonly-field px-3 py-2 rounded-xl font-bold tracking-widest" readonly></div>` : ''}
-                            ${showShtrix ? `<div><label class="text-[10px] font-bold uppercase text-amber-700">Shtrix kod</label><input type="text" value="${b.shtrixKod || ''}" class="w-full border-2 readonly-field px-3 py-2 rounded-xl text-xs" readonly></div>` : ''}
-                        </div>
-                        <p class="text-[10px] text-gray-500 italic -mt-2"><i class="fa-regular fa-lock mr-1"></i>Shtrix kod va 5 xonali kodni hech kim o'zgartira olmaydi.</p>
-                        ` : ''}
+                        ${adminOnlyKodControls}
 
                         <div>
                             <h4 class="text-xs font-bold text-gray-600 uppercase mb-2">Mahsulotlar ${canEditProducts ? '<span class="text-emerald-600">(tahrirlash mumkin)</span>' : '(o\'zgartirilmaydi)'}</h4>
@@ -1207,6 +1287,19 @@
                 </div>
             `;
 
+            window.saveUebKod5 = async function(id) {
+                const val = document.getElementById('uebKod5Input').value.trim();
+                if (!/^\d{5}$/.test(val)) { alert("5 xonali raqam kiriting!"); return; }
+                await update(ref(db, `buyurtmalar/${id}`), { kod5: val });
+                CACHE.buyurtmalar = null; alert("5 xonali kod saqlandi!");
+            };
+            window.saveUebShtrix = async function(id) {
+                const val = document.getElementById('uebShtrixInput').value.trim();
+                if (!val) { alert("Shtrix kod kiriting!"); return; }
+                await update(ref(db, `buyurtmalar/${id}`), { shtrixKod: val });
+                CACHE.buyurtmalar = null; alert("Shtrix kod saqlandi!");
+            };
+
             window._uebAddProduct = function() {
                 const mId = document.getElementById('uebNewProduct').value;
                 if (!mId) { alert("Mahsulot tanlang!"); return; }
@@ -1215,7 +1308,6 @@
                 const m = mahsulotlar[mId];
                 if (!m) return;
                 const maxSoni = parseInt(m.soni) || 0;
-
                 const existingIdx = editItems.findIndex(it => it.mahsulotId === mId);
                 if (existingIdx >= 0) {
                     const newQty = (parseInt(editItems[existingIdx].soni) || 0) + qty;
@@ -1250,15 +1342,11 @@
 
                 if (canEditProducts) {
                     if (editItems.length === 0) { alert("Kamida bitta mahsulot bo'lishi kerak!"); return; }
-
                     const oldItems = b.items || [];
                     const oldMap = {};
                     oldItems.forEach(it => { if (it.mahsulotId) oldMap[it.mahsulotId] = (oldMap[it.mahsulotId] || 0) + (parseInt(it.soni) || 0); });
-
                     const newMap = {};
                     editItems.forEach(it => { if (it.mahsulotId) newMap[it.mahsulotId] = (newMap[it.mahsulotId] || 0) + (parseInt(it.soni) || 0); });
-
-                    // Ombordagi mavjud miqdorni tekshirish
                     const allM = await getMahsulotlarCached(true);
                     for (let mId in newMap) {
                         const oldQty = oldMap[mId] || 0;
@@ -1270,8 +1358,6 @@
                             if (newQty > available) { alert(`Omborda yetarli emas: ${m.nomi || mId} (mavjud: ${available}, kerak: ${newQty})`); return; }
                         }
                     }
-
-                    // O'chirilgan mahsulotlarni omborga qaytarish
                     for (let mId in oldMap) {
                         if (!newMap[mId]) {
                             const mSnap = await get(ref(db, `mahsulotlar/${mId}`));
@@ -1281,7 +1367,6 @@
                             }
                         }
                     }
-                    // Miqdor farqini omborga qo'llash
                     for (let mId in newMap) {
                         const oldQty = oldMap[mId] || 0;
                         const newQty = newMap[mId];
@@ -1294,13 +1379,11 @@
                             }
                         }
                     }
-
                     const jami = editItems.reduce((s, it) => s + ((parseInt(it.narx) || 0) * (parseInt(it.soni) || 0)), 0);
                     updateData.items = editItems;
                     updateData.jami = jami;
                     updateData.mahsulotNomi = editItems.map(i => i.mahsulotNomi).join(', ');
                     updateData.mahsulotRasm = editItems[0]?.mahsulotRasm || '';
-
                     CACHE.mahsulotlar = null;
                 }
 
@@ -1548,14 +1631,12 @@
                     const canDelete = holatData ? holatData.ochirishRuxsati !== false : true;
                     const eslatma = holatData ? holatData.eslatma : '';
 
-                    const rasm = b.mahsulotRasm ? `<img src="${b.mahsulotRasm}" class="w-16 h-16 object-contain bg-gray-50 rounded-xl border">` : `<div class="w-16 h-16 bg-gray-100 rounded-xl flex items-center justify-center"><i class="fa-solid fa-image text-gray-300"></i></div>`;
                     let holatOptions = ''; for (let hKey in holatlar) { const h = holatlar[hKey]; holatOptions += `<option value="${h.yozuv}" ${b.holat === h.yozuv ? 'selected' : ''}>${h.yozuv}</option>`; }
 
                     let shtrixHtml = showShtrix ? `<div class="flex-1 min-w-[150px]"><svg class="acv" data-code="${b.shtrixKod || b.id}"></svg></div>` : '';
                     let kod5Html = showKod5 ? `<div class="text-center"><div class="text-[10px] uppercase font-bold text-amber-700">5 xonali kod</div><div class="text-xl font-extrabold text-amber-800 tracking-widest">${b.kod5 || '—'}</div></div>` : '';
                     let eslatmaHtml = eslatma ? `<div class="bg-yellow-50 border border-yellow-200 p-2 rounded-xl text-xs text-yellow-800"><i class="fa-regular fa-note-sticky mr-1"></i>${eslatma}</div>` : '';
 
-                    // ITEMS ro'yxati
                     let itemsListHtml = '';
                     const items = b.items || [{ mahsulotNomi: b.mahsulotNomi, soni: b.soni, narx: b.narx, jami: b.jami, mahsulotRasm: b.mahsulotRasm }];
                     itemsListHtml = `
@@ -1750,7 +1831,7 @@
         async function renderAdminScan(container) {
             container.innerHTML = `
                 <div class="bg-white/70 backdrop-blur-sm p-6 rounded-3xl shadow-sm border border-indigo-100 space-y-6">
-                    <div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-solid fa-barcode text-indigo-600 mr-3"></i>Shtrix kod / 5 xonali kod qidiruv</h2><p class="text-sm text-gray-500">Kodni kiriting yoki kamera orqali skaner qiling</p></div>
+                    <div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-solid fa-barcode text-indigo-600 mr-3"></i>Shtrix kod / 5 xonali kod qidiruv</h2><p class="text-sm text-gray-500">Kodni kiriting yoki kamera orqali skaner qiling (buyurtma + ariza)</p></div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div class="bg-indigo-50/60 p-4 rounded-3xl border-2 border-dashed border-indigo-200 space-y-2">
                             <h4 class="text-xs font-bold text-indigo-700 uppercase">5 xonali kod</h4>
@@ -1774,16 +1855,24 @@
             document.getElementById('scanKod5Btn').addEventListener('click', async () => {
                 const kod = document.getElementById('scanKod5').value.trim();
                 if (!kod) return;
-                const all = await getBuyurtmalarCached(true);
-                const found = Object.entries(all).find(([id, b]) => b.kod5 === kod);
-                renderScanResult(found ? found[1] : null, found ? found[0] : null);
+                const allB = await getBuyurtmalarCached(true);
+                let foundB = Object.entries(allB).find(([id, b]) => b.kod5 === kod);
+                if (foundB) { playBeep(3, 1200, 100, 80); renderScanResult(foundB[1], foundB[0], 'buyurtma'); return; }
+                const allA = await getArizalarCached(true);
+                let foundA = Object.entries(allA).find(([id, a]) => a.kod5 === kod);
+                if (foundA) { playBeep(3, 1200, 100, 80); renderScanResultAriza(foundA[1], foundA[0]); return; }
+                renderScanResult(null, null, 'buyurtma');
             });
             document.getElementById('scanBarcodeBtn').addEventListener('click', async () => {
                 const code = document.getElementById('scanBarcode').value.trim();
                 if (!code) return;
-                const all = await getBuyurtmalarCached(true);
-                const found = Object.entries(all).find(([id, b]) => b.shtrixKod === code || b.id === code);
-                renderScanResult(found ? found[1] : null, found ? found[0] : null);
+                const allB = await getBuyurtmalarCached(true);
+                let foundB = Object.entries(allB).find(([id, b]) => b.shtrixKod === code || b.id === code);
+                if (foundB) { playBeep(3, 1200, 100, 80); renderScanResult(foundB[1], foundB[0], 'buyurtma'); return; }
+                const allA = await getArizalarCached(true);
+                let foundA = Object.entries(allA).find(([id, a]) => a.shtrixKod === code || a.id === code);
+                if (foundA) { playBeep(3, 1200, 100, 80); renderScanResultAriza(foundA[1], foundA[0]); return; }
+                renderScanResult(null, null, 'buyurtma');
             });
             document.getElementById('scanBarcode').addEventListener('keypress', (e) => { if (e.key === 'Enter') document.getElementById('scanBarcodeBtn').click(); });
             document.getElementById('scanKod5').addEventListener('keypress', (e) => { if (e.key === 'Enter') document.getElementById('scanKod5Btn').click(); });
@@ -1802,6 +1891,7 @@
                         { facingMode: "environment" },
                         { fps: 10, qrbox: { width: 250, height: 150 } },
                         async (decodedText) => {
+                            playBeep(3, 1200, 100, 80);
                             document.getElementById('scanBarcode').value = decodedText;
                             document.getElementById('scanBarcodeBtn').click();
                             if (html5QrCode) { await html5QrCode.stop(); html5QrCode = null; document.getElementById('startScanBtn').innerText = "Kamerani yoqish"; document.getElementById('reader').innerHTML = ''; }
@@ -1814,7 +1904,7 @@
         }
         async function renderScanResult(b, bId) {
             const res = document.getElementById('scanResult');
-            if (!b) { res.innerHTML = `<div class="bg-red-50 p-4 rounded-2xl text-red-600 font-bold">Buyurtma topilmadi!</div>`; return; }
+            if (!b) { res.innerHTML = `<div class="bg-red-50 p-4 rounded-2xl text-red-600 font-bold">Topilmadi! (buyurtma yoki ariza)</div>`; return; }
             const holatlar = await getHolatlarCached(true);
             let holatData = null;
             for (let hKey in holatlar) { if (holatlar[hKey].yozuv === b.holat) { holatData = holatlar[hKey]; break; } }
@@ -1859,6 +1949,41 @@
                 </div>
             `;
             if (showShtrix) { try { JsBarcode("#scan_bc", b.shtrixKod || String(b.id), { format: "CODE128", width: 1.6, height: 50, fontSize: 12 }); } catch(e) {} }
+        }
+        async function renderScanResultAriza(a, aId) {
+            const res = document.getElementById('scanResult');
+            const turlar = await getArizaTurlariCached(true);
+            const holatlar = await getHolatlarCached(true);
+            const turName = turlar[a.turKey] ? turlar[a.turKey].nomi : "Ariza";
+            let holatData = null;
+            for (let hKey in holatlar) { if (holatlar[hKey].yozuv === a.holat) { holatData = holatlar[hKey]; break; } }
+            const showShtrix = holatData ? holatData.shtrixKorsatish !== false : true;
+            const showKod5 = holatData ? holatData.kod5Korsatish !== false : true;
+            const eslatma = holatData ? holatData.eslatma : '';
+            let qiymatlarHtml = ''; if (a.qiymatlar) for (let mk in a.qiymatlar) qiymatlarHtml += renderFieldItem(mk, a.qiymatlar[mk]);
+            res.innerHTML = `
+                <div class="border-2 border-indigo-300 p-5 rounded-3xl bg-indigo-50/40 space-y-3">
+                    <div class="flex justify-between items-center flex-wrap gap-2">
+                        <div><span class="text-xs font-bold text-gray-500">Ariza ID:</span> <span class="font-extrabold text-indigo-700 text-xl">${a.id}</span> <span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-bold ml-2">Ariza</span></div>
+                        <span class="px-3 py-1 rounded-full text-xs font-bold" style="${a.holatRangi || ''}">${a.holat}</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        ${showKod5 ? `<div class="bg-white p-2 rounded-xl border">5 xonali kod: <b class="tracking-widest">${a.kod5 || '—'}</b></div>` : ''}
+                        ${showShtrix ? `<div class="bg-white p-2 rounded-xl border">Shtrix: <b>${a.shtrixKod || '—'}</b></div>` : ''}
+                        <div class="bg-white p-2 rounded-xl border">User: <b>${a.userId} (${a.userRole})</b></div>
+                        <div class="bg-white p-2 rounded-xl border">Turi: <b>${turName}</b></div>
+                        <div class="bg-white p-2 rounded-xl border col-span-2">Sana: <b>${new Date(a.sana).toLocaleString()}</b></div>
+                    </div>
+                    ${eslatma ? `<div class="bg-yellow-50 border border-yellow-200 p-2 rounded-xl text-xs text-yellow-800"><i class="fa-regular fa-note-sticky mr-1"></i>${eslatma}</div>` : ''}
+                    <div class="bg-white p-3 rounded-2xl border space-y-2">
+                        <h4 class="text-xs font-bold uppercase">Maydonlar:</h4>
+                        <div class="grid grid-cols-1 gap-2">${qiymatlarHtml}</div>
+                    </div>
+                    ${showShtrix ? `<div><svg id="scan_bc_a"></svg></div>` : ''}
+                    <button onclick="openUserEditModal('${aId}')" class="w-full bg-indigo-600 text-white py-2 rounded-2xl font-bold text-xs">Tahrirlash / Ko'rish</button>
+                </div>
+            `;
+            if (showShtrix) { try { JsBarcode("#scan_bc_a", a.shtrixKod || String(a.id), { format: "CODE128", width: 1.6, height: 50, fontSize: 12 }); } catch(e) {} }
         }
         window.scanSaveHolat = async function(id) {
             const val = document.getElementById('scanHolatSel').value;
@@ -1915,7 +2040,7 @@
             const arizalar = await getArizalarCached(true); const turlar = await getArizaTurlariCached(true); const holatlar = await getHolatlarCached(true);
             container.innerHTML = `
                 <div class="bg-white/70 backdrop-blur-sm p-6 rounded-3xl shadow-sm border border-indigo-100 space-y-4">
-                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3"><div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-shield text-purple-500 mr-3"></i>Arizalar boshqaruvi</h2><p class="text-sm text-gray-500">Barcha arizalarni boshqarish</p></div><div class="w-full md:w-72"><input type="text" id="adminArizaSearch" placeholder="Qidirish..." class="w-full px-4 py-3 border-2 border-indigo-200 rounded-2xl focus:ring-4 focus:ring-indigo-300 bg-white/80"></div></div>
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3"><div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-shield text-purple-500 mr-3"></i>Arizalar boshqaruvi</h2><p class="text-sm text-gray-500">Barcha arizalarni boshqarish</p></div><div class="w-full md:w-72"><input type="text" id="adminArizaSearch" placeholder="Kod / ID / turi..." class="w-full px-4 py-3 border-2 border-indigo-200 rounded-2xl focus:ring-4 focus:ring-indigo-300 bg-white/80"></div></div>
                     <div id="adminArizalarListContainer" class="space-y-4"></div>
                 </div>
             `;
@@ -1925,16 +2050,41 @@
                 for (let id in arizalar) {
                     const a = arizalar[id]; if (!a.korinsin) continue;
                     const turName = turlar[a.turKey] ? turlar[a.turKey].nomi : "Ariza";
-                    let searchText = `${a.id} ${a.userId} ${turName} ${a.holat} ${a.javob || ''}`;
+                    let searchText = `${a.id} ${a.userId} ${turName} ${a.holat} ${a.javob || ''} ${a.kod5 || ''} ${a.shtrixKod || ''}`;
                     if (a.qiymatlar) for (let mk in a.qiymatlar) { const v = a.qiymatlar[mk]; searchText += ` ${mk} ${typeof v === 'object' ? (v.qiymat || v.nomi || '') : v}`; }
                     if (f && !searchText.toLowerCase().includes(f)) continue;
                     found = true;
                     let qiymatlarHtml = ''; if (a.qiymatlar) for (let mk in a.qiymatlar) qiymatlarHtml += renderFieldItem(mk, a.qiymatlar[mk]);
                     let holatOptions = ''; for (let hKey in holatlar) { const h = holatlar[hKey]; holatOptions += `<option value="${h.yozuv}" ${a.holat === h.yozuv ? 'selected' : ''}>${h.yozuv}</option>`; }
-                    html += `<div class="border p-5 rounded-3xl bg-white shadow-sm space-y-4"><div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b pb-3"><div><span class="text-xs font-bold text-gray-400">ID:</span><span class="font-bold text-indigo-600 text-lg">${a.id}</span><span class="ml-3 text-xs bg-gray-100 px-3 py-1 rounded-2xl font-semibold">ID: ${a.userId} (${a.userRole})</span></div><div class="flex items-center gap-2"><select onchange="adminUpdateHolat('${id}', this.value)" class="border-2 border-indigo-200 px-3 py-1.5 rounded-2xl text-xs font-bold bg-white">${holatOptions}</select><button onclick="adminDeleteAriza('${id}')" class="bg-red-50 text-red-600 px-4 py-1.5 rounded-2xl text-xs font-bold hover:bg-red-100"><i class="fa-regular fa-trash mr-1"></i>O'chirish</button></div></div><div><p class="text-sm font-semibold">Turi: <span class="text-indigo-600">${turName}</span></p><p class="text-xs text-gray-400">${new Date(a.sana).toLocaleString()}</p></div><div class="grid grid-cols-1 gap-3">${qiymatlarHtml}</div><div class="pt-3 border-t space-y-2"><label class="block text-xs font-bold text-gray-700 uppercase">Javob:</label><textarea id="adminJavobInput_${id}" rows="2" class="w-full border-2 border-indigo-200 px-4 py-3 rounded-2xl text-sm bg-gray-50">${a.javob || ''}</textarea><button onclick="saveAdminJavob('${id}')" class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-5 py-2 rounded-2xl text-xs font-bold shadow hover:shadow-lg">Saqlash</button></div></div>`;
+
+                    let holatData = null;
+                    for (let hKey in holatlar) { if (holatlar[hKey].yozuv === a.holat) { holatData = holatlar[hKey]; break; } }
+                    const showShtrix = holatData ? holatData.shtrixKorsatish !== false : true;
+                    const showKod5 = holatData ? holatData.kod5Korsatish !== false : true;
+                    const eslatma = holatData ? holatData.eslatma : '';
+
+                    const kod5Html = showKod5 ? `<div class="text-center"><div class="text-[10px] uppercase font-bold text-amber-700">5 xonali kod</div><div class="text-xl font-extrabold text-amber-800 tracking-widest">${a.kod5 || '—'}</div></div>` : '';
+                    const shtrixHtml = showShtrix ? `<div class="flex-1 min-w-[150px]"><svg class="arcv" data-code="${a.shtrixKod || a.id}"></svg></div>` : '';
+                    const eslatmaHtml = eslatma ? `<div class="bg-yellow-50 border border-yellow-200 p-2 rounded-xl text-xs text-yellow-800"><i class="fa-regular fa-note-sticky mr-1"></i>${eslatma}</div>` : '';
+
+                    html += `<div class="border p-5 rounded-3xl bg-white shadow-sm space-y-4">
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b pb-3">
+                            <div><span class="text-xs font-bold text-gray-400">ID:</span><span class="font-bold text-indigo-600 text-lg">${a.id}</span><span class="ml-3 text-xs bg-gray-100 px-3 py-1 rounded-2xl font-semibold">ID: ${a.userId} (${a.userRole})</span></div>
+                            <div class="flex items-center gap-2">
+                                <select onchange="adminUpdateHolat('${id}', this.value)" class="border-2 border-indigo-200 px-3 py-1.5 rounded-2xl text-xs font-bold bg-white">${holatOptions}</select>
+                                <button onclick="openUserEditModal('${id}')" class="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-2xl text-xs font-bold hover:bg-blue-100"><i class="fa-regular fa-pen"></i></button>
+                                <button onclick="adminDeleteAriza('${id}')" class="bg-red-50 text-red-600 px-4 py-1.5 rounded-2xl text-xs font-bold hover:bg-red-100"><i class="fa-regular fa-trash"></i></button>
+                            </div>
+                        </div>
+                        <div><p class="text-sm font-semibold">Turi: <span class="text-indigo-600">${turName}</span></p><p class="text-xs text-gray-400">${new Date(a.sana).toLocaleString()}</p></div>
+                        ${(kod5Html || shtrixHtml || eslatmaHtml) ? `<div class="flex flex-wrap gap-4 items-center bg-amber-50/60 p-3 rounded-2xl border border-amber-200">${kod5Html}${shtrixHtml}${eslatmaHtml}</div>` : ''}
+                        <div class="grid grid-cols-1 gap-3">${qiymatlarHtml}</div>
+                        <div class="pt-3 border-t space-y-2"><label class="block text-xs font-bold text-gray-700 uppercase">Javob:</label><textarea id="adminJavobInput_${id}" rows="2" class="w-full border-2 border-indigo-200 px-4 py-3 rounded-2xl text-sm bg-gray-50">${a.javob || ''}</textarea><button onclick="saveAdminJavob('${id}')" class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-5 py-2 rounded-2xl text-xs font-bold shadow hover:shadow-lg">Saqlash</button></div>
+                    </div>`;
                 }
                 if (!found) html += `<div class="text-center py-10 text-gray-400">Arizalar yo‘q</div>`;
                 list.innerHTML = html;
+                document.querySelectorAll('svg.arcv').forEach(svg => { try { JsBarcode(svg, svg.dataset.code, { format: "CODE128", width: 1.2, height: 44, fontSize: 10 }); } catch(e) {} });
             }
             draw();
             document.getElementById('adminArizaSearch').addEventListener('input', (e) => draw(e.target.value.trim()));
@@ -2091,7 +2241,9 @@
                 let defHolat = 'Kutilmoqda', defRangi = 'background:#fef3c7;color:#92400e;', defTahrir = true, defOchirish = true;
                 const firstH = Object.keys(holatlar)[0]; if (firstH) { defHolat = holatlar[firstH].yozuv; defRangi = holatlar[firstH].rang; defTahrir = holatlar[firstH].tahrirlashRuxsati !== false; defOchirish = holatlar[firstH].ochirishRuxsati !== false; }
                 const raqam = Math.floor(100000 + Math.random() * 900000).toString();
-                const yeni = { id: raqam, userId: user.id, userRole: user.role, submittedByRole: user.role === 'admin' ? 'admin' : 'odam', sana: new Date().toISOString(), turKey, qiymatlar: data, holat: defHolat, holatRangi: defRangi, tahrirlashMumkin: defTahrir, ochirishMumkin: defOchirish, javob: '', korinsin: true };
+                const kod5 = await generateKod5();
+                const shtrixKod = 'AR' + Date.now().toString().slice(-8) + Math.floor(10 + Math.random()*90);
+                const yeni = { id: raqam, userId: user.id, userRole: user.role, submittedByRole: user.role === 'admin' ? 'admin' : 'odam', sana: new Date().toISOString(), turKey, qiymatlar: data, holat: defHolat, holatRangi: defRangi, tahrirlashMumkin: defTahrir, ochirishMumkin: defOchirish, javob: '', korinsin: true, kod5, shtrixKod };
                 await set(ref(db, `arizalar/${raqam}`), yeni);
                 CACHE.arizalar = null;
                 renderTabrikNoma(container, yeni);
@@ -2103,9 +2255,12 @@
                 <div id="printArea" class="bg-white/90 backdrop-blur-sm p-8 rounded-3xl shadow-xl border border-indigo-100 text-center space-y-6">
                     <div class="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto text-5xl shadow-lg"><i class="fa-regular fa-circle-check"></i></div>
                     <div><h2 class="text-3xl font-extrabold text-gray-800">Qabul qilindi!</h2><p class="text-gray-600">Raqam: <strong class="text-indigo-600 text-xl">${ariza.id}</strong> · ID: ${ariza.userId}</p><p class="text-xs text-gray-400">${new Date(ariza.sana).toLocaleString()}</p></div>
+                    ${ariza.kod5 ? `<div class="flex flex-wrap justify-center gap-4"><div class="bg-indigo-50 p-3 rounded-2xl border border-indigo-200"><div class="text-[10px] uppercase font-bold text-indigo-700">5 xonali kod</div><div class="text-2xl font-extrabold text-indigo-800 tracking-widest">${ariza.kod5}</div></div></div>` : ''}
+                    ${ariza.shtrixKod ? `<div><svg id="ariza_bcv" class="mx-auto bg-white p-2 rounded-2xl"></svg></div>` : ''}
                     <div class="flex flex-wrap justify-center gap-4 pt-2"><button id="downloadPdfBtn" class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-2xl font-bold shadow hover:shadow-lg"><i class="fa-regular fa-file-pdf mr-2"></i>PDF</button><button id="downloadScreenshotBtn" class="bg-slate-700 text-white px-6 py-3 rounded-2xl font-bold shadow hover:shadow-lg"><i class="fa-regular fa-camera mr-2"></i>Skrinshot</button><button onclick="switchTab('ariza')" class="bg-gray-200 text-gray-700 px-6 py-3 rounded-2xl font-bold hover:bg-gray-300">Yangi</button></div>
                 </div>
             `;
+            if (ariza.shtrixKod) { try { JsBarcode("#ariza_bcv", ariza.shtrixKod, { format: "CODE128", width: 1.6, height: 60, fontSize: 12 }); } catch(e) {} }
             document.getElementById('downloadPdfBtn').addEventListener('click', () => { html2pdf().from(document.getElementById('printArea')).save(`Ariza_${ariza.id}.pdf`); });
             document.getElementById('downloadScreenshotBtn').addEventListener('click', () => { html2canvas(document.getElementById('printArea')).then(canvas => { const a = document.createElement('a'); a.download = `Ariza_${ariza.id}.png`; a.href = canvas.toDataURL(); a.click(); }); });
         }
@@ -2146,9 +2301,10 @@
         async function renderArizalarim(container) {
             const user = await getCurrentUser(); if (!user) return;
             const arizalar = await getArizalarCached(true); const turlar = await getArizaTurlariCached(true);
+            const holatlar = await getHolatlarCached(true);
             container.innerHTML = `
                 <div class="bg-white/70 backdrop-blur-sm p-6 rounded-3xl shadow-sm border border-indigo-100 space-y-4">
-                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3"><div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-folder-open text-indigo-500 mr-3"></i>Arizalarim</h2><p class="text-sm text-gray-500">ID: ${user.id}</p></div><div class="w-full md:w-72"><input type="text" id="userArizaSearch" placeholder="Qidirish..." class="w-full px-4 py-3 border-2 border-indigo-200 rounded-2xl focus:ring-4 focus:ring-indigo-300 bg-white/80"></div></div>
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3"><div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-folder-open text-indigo-500 mr-3"></i>Arizalarim</h2><p class="text-sm text-gray-500">ID: ${user.id}</p></div><div class="w-full md:w-72"><input type="text" id="userArizaSearch" placeholder="Kod / ID / turi..." class="w-full px-4 py-3 border-2 border-indigo-200 rounded-2xl focus:ring-4 focus:ring-indigo-300 bg-white/80"></div></div>
                     <div id="userArizalarListContainer" class="space-y-4"></div>
                 </div>
             `;
@@ -2158,7 +2314,7 @@
                 for (let id in arizalar) {
                     const a = arizalar[id]; if (a.userId !== user.id || !a.korinsin) continue;
                     const turName = turlar[a.turKey] ? turlar[a.turKey].nomi : "Ariza";
-                    let searchText = `${a.id} ${turName} ${a.holat} ${a.javob || ''}`;
+                    let searchText = `${a.id} ${turName} ${a.holat} ${a.javob || ''} ${a.kod5 || ''} ${a.shtrixKod || ''}`;
                     if (f && !searchText.toLowerCase().includes(f)) continue;
                     found = true;
                     let qiymatlarHtml = ''; if (a.qiymatlar) for (let mk in a.qiymatlar) qiymatlarHtml += renderFieldItem(mk, a.qiymatlar[mk]);
@@ -2171,19 +2327,51 @@
                         if (a.ochirishMumkin !== false) actions += `<button onclick="userDeleteAriza('${id}')" class="bg-red-600 text-white px-4 py-1.5 rounded-2xl text-xs font-bold hover:bg-red-700"><i class="fa-regular fa-trash mr-1"></i>O'chirish</button>`;
                         actions += `</div>`;
                     }
-                    html += `<div class="border p-5 rounded-3xl bg-white shadow-sm space-y-3"><div class="flex justify-between items-center border-b pb-3"><div><span class="text-xs font-bold text-gray-400">ID:</span><span class="font-bold text-indigo-600 text-lg ml-2">${a.id}</span></div><div class="flex items-center gap-1.5 bg-gray-50 px-3 py-1 rounded-2xl border"><span class="text-gray-500 text-xs">Holat:</span><span class="px-3 py-0.5 rounded-full text-xs font-bold" style="${a.holatRangi || ''}">${a.holat}</span></div></div>${submittedBy}<div><p class="text-sm font-semibold">Turi: <span class="text-indigo-600">${turName}</span></p><p class="text-xs text-gray-400">${new Date(a.sana).toLocaleString()}</p></div><div class="grid grid-cols-1 gap-3">${qiymatlarHtml}</div>${javobHtml}${actions}</div>`;
+
+                    let holatData = null;
+                    for (let hKey in holatlar) { if (holatlar[hKey].yozuv === a.holat) { holatData = holatlar[hKey]; break; } }
+                    const showShtrix = holatData ? holatData.shtrixKorsatish !== false : true;
+                    const showKod5 = holatData ? holatData.kod5Korsatish !== false : true;
+                    const eslatma = holatData ? holatData.eslatma : '';
+
+                    const kod5Html = showKod5 ? `<div class="text-center"><div class="text-[10px] uppercase font-bold text-amber-700">5 xonali kod</div><div class="text-xl font-extrabold text-amber-800 tracking-widest">${a.kod5 || '—'}</div></div>` : '';
+                    const shtrixHtml = showShtrix ? `<div class="flex-1 min-w-[150px]"><svg class="arcv" data-code="${a.shtrixKod || a.id}"></svg></div>` : '';
+                    const eslatmaHtml = eslatma ? `<div class="bg-yellow-50 border border-yellow-200 p-2 rounded-xl text-xs text-yellow-800"><i class="fa-regular fa-note-sticky mr-1"></i>${eslatma}</div>` : '';
+
+                    html += `<div class="border p-5 rounded-3xl bg-white shadow-sm space-y-3">
+                        <div class="flex justify-between items-center border-b pb-3 flex-wrap gap-2">
+                            <div><span class="text-xs font-bold text-gray-400">ID:</span><span class="font-bold text-indigo-600 text-lg ml-2">${a.id}</span></div>
+                            <div class="flex items-center gap-1.5 bg-gray-50 px-3 py-1 rounded-2xl border"><span class="text-gray-500 text-xs">Holat:</span><span class="px-3 py-0.5 rounded-full text-xs font-bold" style="${a.holatRangi || ''}">${a.holat}</span></div>
+                        </div>
+                        ${submittedBy}
+                        <div><p class="text-sm font-semibold">Turi: <span class="text-indigo-600">${turName}</span></p><p class="text-xs text-gray-400">${new Date(a.sana).toLocaleString()}</p></div>
+                        ${(kod5Html || shtrixHtml || eslatmaHtml) ? `<div class="flex flex-wrap gap-4 items-center bg-amber-50/60 p-3 rounded-2xl border border-amber-200">${kod5Html}${shtrixHtml}${eslatmaHtml}</div>` : ''}
+                        <div class="grid grid-cols-1 gap-3">${qiymatlarHtml}</div>
+                        ${javobHtml}${actions}
+                    </div>`;
                 }
                 if (!found) html += `<div class="text-center py-10 text-gray-400">Arizalar mavjud emas</div>`;
                 list.innerHTML = html;
+                document.querySelectorAll('svg.arcv').forEach(svg => { try { JsBarcode(svg, svg.dataset.code, { format: "CODE128", width: 1.2, height: 44, fontSize: 10 }); } catch(e) {} });
             }
             draw();
             document.getElementById('userArizaSearch').addEventListener('input', (e) => draw(e.target.value.trim()));
         }
 
         window.userDeleteAriza = async function(id) { if (confirm("O'chirilsin?")) { await remove(ref(db, `arizalar/${id}`)); CACHE.arizalar = null; renderArizalarim(document.getElementById('tabContent')); } };
+
+        // ==================== ARIZA TAHRIRLASH MODAL (admin: shtrix va kod5 tahrirlaydi) ====================
         window.openUserEditModal = async function(arizaId) {
+            const user = await getCurrentUser();
             const arizalar = await getArizalarCached(); const a = arizalar[arizaId]; if (!a) return;
-            if (a.tahrirlashMumkin === false) { alert("Tahrirlash ruxsati yo‘q!"); return; }
+            const isAdmin = user.role === 'admin';
+            if (a.tahrirlashMumkin === false && !isAdmin) { alert("Tahrirlash ruxsati yo‘q!"); return; }
+            const holatlar = await getHolatlarCached(true);
+            let holatData = null;
+            for (let hKey in holatlar) { if (holatlar[hKey].yozuv === a.holat) { holatData = holatlar[hKey]; break; } }
+            const showKod5 = holatData ? holatData.kod5Korsatish !== false : true;
+            const showShtrix = holatData ? holatData.shtrixKorsatish !== false : true;
+
             const turlar = await getArizaTurlariCached(); const maydonlarEntries = sortMaydonlar(turlar[a.turKey]?.maydonlar);
             const modal = document.getElementById('modalContainer');
             let fields = '';
@@ -2214,10 +2402,44 @@
                 else fields += `<input type="file" data-fid="${mId}" data-ftype="file" data-req="false" class="edit-ariza-field w-full px-4 py-3 border-2 border-indigo-200 rounded-2xl file-input">`;
                 fields += `</div>`;
             }
+
+            const adminKodControls = isAdmin ? `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 bg-amber-50 p-3 rounded-2xl border-2 border-amber-300">
+                    <div>
+                        <label class="text-[10px] font-bold uppercase text-amber-700">5 xonali kod ${showKod5 ? '' : '<span class="text-red-500">(yashirilgan)</span>'}</label>
+                        <input type="text" id="editArizaKod5" value="${a.kod5 || ''}" class="w-full border-2 border-amber-300 px-3 py-2 rounded-xl font-bold tracking-widest bg-white">
+                        <div class="flex gap-1 mt-1 flex-wrap">
+                            <button onclick="saveArizaKod5Manual('${arizaId}')" class="bg-emerald-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold">💾 Saqlash</button>
+                            <button onclick="regenerateKod5('ariza','${arizaId}')" class="bg-blue-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold">🔄 Qayta</button>
+                            <button onclick="deleteKod5('ariza','${arizaId}')" class="bg-red-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold">🗑 O'chirish</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold uppercase text-amber-700">Shtrix kod ${showShtrix ? '' : '<span class="text-red-500">(yashirilgan)</span>'}</label>
+                        <input type="text" id="editArizaShtrix" value="${a.shtrixKod || ''}" class="w-full border-2 border-amber-300 px-3 py-2 rounded-xl text-xs bg-white">
+                        <div class="flex gap-1 mt-1 flex-wrap">
+                            <button onclick="saveArizaShtrixManual('${arizaId}')" class="bg-emerald-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold">💾 Saqlash</button>
+                            <button onclick="regenerateShtrixKod('ariza','${arizaId}')" class="bg-blue-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold">🔄 Qayta</button>
+                            <button onclick="deleteShtrixKod('ariza','${arizaId}')" class="bg-red-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold">🗑 O'chirish</button>
+                        </div>
+                    </div>
+                    <div class="md:col-span-2 text-[10px] text-gray-500 italic"><i class="fa-solid fa-shield-halved mr-1"></i>Faqat admin shtrix va 5 xonali kodni o'zgartira oladi.</div>
+                </div>
+            ` : `
+                ${(showKod5 || showShtrix) ? `
+                <div class="grid grid-cols-2 gap-2 bg-amber-50 p-3 rounded-2xl border border-amber-200">
+                    ${showKod5 ? `<div><label class="text-[10px] font-bold uppercase text-amber-700">5 xonali kod</label><input type="text" value="${a.kod5 || ''}" class="w-full border-2 readonly-field px-3 py-2 rounded-xl font-bold tracking-widest" readonly></div>` : ''}
+                    ${showShtrix ? `<div><label class="text-[10px] font-bold uppercase text-amber-700">Shtrix kod</label><input type="text" value="${a.shtrixKod || ''}" class="w-full border-2 readonly-field px-3 py-2 rounded-xl text-xs" readonly></div>` : ''}
+                </div>
+                <p class="text-[10px] text-gray-500 italic -mt-2"><i class="fa-regular fa-lock mr-1"></i>Faqat admin o'zgartirishi mumkin.</p>
+                ` : ''}
+            `;
+
             modal.innerHTML = `
                 <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto modal-overlay">
                     <div class="bg-white p-6 md:p-8 rounded-3xl shadow-2xl w-full max-w-lg space-y-4 max-h-[90vh] overflow-y-auto border border-indigo-100">
-                        <div class="flex justify-between items-center border-b pb-3"><h3 class="text-2xl font-bold text-gray-800">Tahrirlash №${a.id}</h3><button onclick="closeModal()" class="text-gray-400 hover:text-gray-700 text-2xl font-bold px-2">&times;</button></div>
+                        <div class="flex justify-between items-center border-b pb-3"><h3 class="text-2xl font-bold text-gray-800">Arizani tahrirlash №${a.id}</h3><button onclick="closeModal()" class="text-gray-400 hover:text-gray-700 text-2xl font-bold px-2">&times;</button></div>
+                        ${adminKodControls}
                         <div class="space-y-4">${fields}</div>
                         <div class="flex justify-end gap-3 pt-4 border-t"><button onclick="closeModal()" class="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-2xl font-bold text-sm">Bekor</button><button onclick="saveEditedAriza('${arizaId}')" class="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-bold text-sm shadow">Saqlash</button></div>
                     </div>
@@ -2232,6 +2454,18 @@
                     });
                 });
             });
+            window.saveArizaKod5Manual = async function(id) {
+                const val = document.getElementById('editArizaKod5').value.trim();
+                if (!/^\d{5}$/.test(val)) { alert("5 xonali raqam kiriting!"); return; }
+                await update(ref(db, `arizalar/${id}`), { kod5: val });
+                CACHE.arizalar = null; alert("5 xonali kod saqlandi!");
+            };
+            window.saveArizaShtrixManual = async function(id) {
+                const val = document.getElementById('editArizaShtrix').value.trim();
+                if (!val) { alert("Shtrix kod kiriting!"); return; }
+                await update(ref(db, `arizalar/${id}`), { shtrixKod: val });
+                CACHE.arizalar = null; alert("Shtrix kod saqlandi!");
+            };
         };
         window.closeModal = function() { document.getElementById('modalContainer').innerHTML = ''; };
         window.saveEditedAriza = async function(arizaId) {
@@ -2643,7 +2877,7 @@
             }
             container.innerHTML = `
                 <div class="bg-white/70 backdrop-blur-sm p-6 rounded-3xl shadow-sm border border-indigo-100 space-y-6">
-                    <div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-palette text-purple-500 mr-3"></i>Holatlar boshqaruvi</h2><p class="text-sm text-gray-500">Har bir holat uchun shtrix, kod, rasm, eslatma va boshqa sozlamalar</p></div>
+                    <div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-palette text-purple-500 mr-3"></i>Holatlar boshqaruvi</h2><p class="text-sm text-gray-500">Har bir holat uchun shtrix, kod, rasm, eslatma va boshqa sozlamalar (ariza + buyurtma)</p></div>
                     <div class="bg-gray-50/80 p-4 rounded-3xl border-2 border-dashed border-indigo-200 space-y-3">
                         <h4 class="text-xs font-bold text-gray-700 uppercase">Yangi holat</h4>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
