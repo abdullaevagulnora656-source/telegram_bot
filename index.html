@@ -213,8 +213,8 @@
         const DEFAULT_BOLIMLAR = {
             ariza:          { nomi: 'Ariza',           rang: '#6366f1', icon: 'fa-file-lines' },
             arizalarim:     { nomi: 'Arizalarim',      rang: '#6366f1', icon: 'fa-folder-open' },
-            sorovnoma:      { nomi: 'Soâ€˜rovnoma',      rang: '#10b981', icon: 'fa-rectangle-list' },
-            sorovnomalarim: { nomi: 'Soâ€˜rovnomalarim', rang: '#10b981', icon: 'fa-copy' },
+            sorovnoma:      { nomi: 'So‘rovnoma',      rang: '#10b981', icon: 'fa-rectangle-list' },
+            sorovnomalarim: { nomi: 'So‘rovnomalarim', rang: '#10b981', icon: 'fa-copy' },
             uzum:           { nomi: 'Uzum Market',     rang: '#a855f7', icon: 'fa-bag-shopping' },
             savat:          { nomi: 'Savat',           rang: '#f59e0b', icon: 'fa-cart-shopping' },
             buyurtmalarim:  { nomi: 'Buyurtmalarim',   rang: '#a855f7', icon: 'fa-box-open' },
@@ -311,7 +311,7 @@
                 <div class="flex-1 flex items-center justify-center p-4 bg-gradient-to-br from-indigo-50 to-purple-50">
                     <div class="bg-white/80 backdrop-blur-md p-8 rounded-3xl shadow-2xl w-full max-w-md border border-indigo-100 text-center space-y-6">
                         <div class="w-20 h-20 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-2xl flex items-center justify-center mx-auto text-3xl shadow-lg"><i class="fa-solid fa-shield-halved"></i></div>
-                        <div><h1 class="text-2xl font-extrabold text-gray-800">Kirish</h1><p class="text-sm text-gray-500 mt-1">ID: <span class="font-bold text-indigo-600">${user.id}</span> Â· ${user.role.toUpperCase()}</p></div>
+                        <div><h1 class="text-2xl font-extrabold text-gray-800">Kirish</h1><p class="text-sm text-gray-500 mt-1">ID: <span class="font-bold text-indigo-600">${user.id}</span> · ${user.role.toUpperCase()}</p></div>
                         <div class="space-y-4">
                             <input type="password" id="pinInput" placeholder="Himoya paroli" class="w-full px-5 py-3.5 border-2 border-indigo-200 rounded-2xl text-center text-xl tracking-widest font-bold focus:ring-4 focus:ring-indigo-300 focus:outline-none bg-white/70">
                             <button id="verifyPinBtn" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3.5 rounded-2xl font-bold shadow-lg hover:shadow-xl transition"><i class="fa-regular fa-circle-check mr-2"></i> Kirish</button>
@@ -396,8 +396,8 @@
                             <div class="text-xs font-bold text-gray-400 px-3 uppercase tracking-wider mb-1">Menyular</div>
                             ${hasPerm('ariza') ? mkBtn('ariza', 'Ariza', 'fa-file-lines') : ''}
                             ${hasPerm('arizalarim') ? mkBtn('arizalarim', 'Arizalarim', 'fa-folder-open') : ''}
-                            ${hasPerm('sorovnoma') ? mkBtn('sorovnoma', 'Soâ€˜rovnoma', 'fa-rectangle-list') : ''}
-                            ${hasPerm('sorovnomalarim') ? mkBtn('sorovnomalarim', 'Soâ€˜rovnomalarim', 'fa-copy') : ''}
+                            ${hasPerm('sorovnoma') ? mkBtn('sorovnoma', 'So‘rovnoma', 'fa-rectangle-list') : ''}
+                            ${hasPerm('sorovnomalarim') ? mkBtn('sorovnomalarim', 'So‘rovnomalarim', 'fa-copy') : ''}
                             ${hasPerm('uzum') ? mkBtn('uzum', 'Uzum Market', 'fa-bag-shopping') : ''}
                             ${hasPerm('uzum') ? mkBtn('savat', 'Savat', 'fa-cart-shopping', 'badge_savat') : ''}
                             ${hasPerm('buyurtmalarim') ? mkBtn('buyurtmalarim', 'Buyurtmalarim', 'fa-box-open') : ''}
@@ -406,11 +406,11 @@
                             ${hasPerm('profillarim') ? mkBtn('profillarim', 'Profillarim', 'fa-users') : ''}
                             ${isAdmin ? `
                                 <hr class="my-3 border-indigo-200">
-                                <div class="text-xs font-bold text-purple-600 px-3 uppercase tracking-wider mb-1">âš™ï¸ Boshqaruv</div>
+                                <div class="text-xs font-bold text-purple-600 px-3 uppercase tracking-wider mb-1">⚙️ Boshqaruv</div>
                                 ${hasAdminPerm('admin_arizalar') ? `<button onclick="checkAdminPasswordAndSwitch('admin_arizalar')" class="w-full text-left px-4 py-2.5 rounded-2xl font-medium text-sm transition flex items-center gap-3 tab-btn" data-tab="admin_arizalar"><i class="fa-regular fa-shield text-purple-500 mr-3"></i>Arizalar</button>` : ''}
-                                ${hasAdminPerm('admin_sorovnomalar') ? `<button onclick="checkAdminPasswordAndSwitch('admin_sorovnomalar')" class="w-full text-left px-4 py-2.5 rounded-2xl font-medium text-sm transition flex items-center gap-3 tab-btn" data-tab="admin_sorovnomalar"><i class="fa-regular fa-rectangle-list text-emerald-500 mr-3"></i>Soâ€˜rovnomalar</button>` : ''}
+                                ${hasAdminPerm('admin_sorovnomalar') ? `<button onclick="checkAdminPasswordAndSwitch('admin_sorovnomalar')" class="w-full text-left px-4 py-2.5 rounded-2xl font-medium text-sm transition flex items-center gap-3 tab-btn" data-tab="admin_sorovnomalar"><i class="fa-regular fa-rectangle-list text-emerald-500 mr-3"></i>So‘rovnomalar</button>` : ''}
                                 ${hasAdminPerm('admin_turlar') ? `<button onclick="checkAdminPasswordAndSwitch('admin_turlar')" class="w-full text-left px-4 py-2.5 rounded-2xl font-medium text-sm transition flex items-center gap-3 tab-btn" data-tab="admin_turlar"><i class="fa-regular fa-gear text-purple-500 mr-3"></i>Ariza turlari</button>` : ''}
-                                ${hasAdminPerm('admin_sorovnoma_turlar') ? `<button onclick="checkAdminPasswordAndSwitch('admin_sorovnoma_turlar')" class="w-full text-left px-4 py-2.5 rounded-2xl font-medium text-sm transition flex items-center gap-3 tab-btn" data-tab="admin_sorovnoma_turlar"><i class="fa-regular fa-list-check text-emerald-500 mr-3"></i>Soâ€˜rovnoma turlari</button>` : ''}
+                                ${hasAdminPerm('admin_sorovnoma_turlar') ? `<button onclick="checkAdminPasswordAndSwitch('admin_sorovnoma_turlar')" class="w-full text-left px-4 py-2.5 rounded-2xl font-medium text-sm transition flex items-center gap-3 tab-btn" data-tab="admin_sorovnoma_turlar"><i class="fa-regular fa-list-check text-emerald-500 mr-3"></i>So‘rovnoma turlari</button>` : ''}
                                 ${hasAdminPerm('admin_statistika') ? `<button onclick="checkAdminPasswordAndSwitch('admin_statistika')" class="w-full text-left px-4 py-2.5 rounded-2xl font-medium text-sm transition flex items-center gap-3 tab-btn" data-tab="admin_statistika"><i class="fa-regular fa-chart-pie text-purple-500 mr-3"></i>Statistika</button>` : ''}
                                 ${hasAdminPerm('admin_holatlar') ? `<button onclick="checkAdminPasswordAndSwitch('admin_holatlar')" class="w-full text-left px-4 py-2.5 rounded-2xl font-medium text-sm transition flex items-center gap-3 tab-btn" data-tab="admin_holatlar"><i class="fa-regular fa-palette text-purple-500 mr-3"></i>Holatlar</button>` : ''}
                                 ${hasAdminPerm('admin_users') ? `<button onclick="checkAdminPasswordAndSwitch('admin_users')" class="w-full text-left px-4 py-2.5 rounded-2xl font-medium text-sm transition flex items-center gap-3 tab-btn" data-tab="admin_users"><i class="fa-regular fa-users-gear text-purple-500 mr-3"></i>Foydalanuvchilar</button>` : ''}
@@ -419,7 +419,7 @@
                                 ${hasAdminPerm('admin_buyurtmalar') ? `<button onclick="checkAdminPasswordAndSwitch('admin_buyurtmalar')" class="w-full text-left px-4 py-2.5 rounded-2xl font-medium text-sm transition flex items-center gap-3 tab-btn" data-tab="admin_buyurtmalar"><i class="fa-solid fa-truck-fast text-purple-500 mr-3"></i>Buyurtmalar</button>` : ''}
                                 ${hasAdminPerm('admin_buyurtma_maydonlar') ? `<button onclick="checkAdminPasswordAndSwitch('admin_buyurtma_maydonlar')" class="w-full text-left px-4 py-2.5 rounded-2xl font-medium text-sm transition flex items-center gap-3 tab-btn" data-tab="admin_buyurtma_maydonlar"><i class="fa-regular fa-rectangle-list text-pink-500 mr-3"></i>Buyurtma maydonlari</button>` : ''}
                                 ${hasAdminPerm('admin_scan') ? `<button onclick="checkAdminPasswordAndSwitch('admin_scan')" class="w-full text-left px-4 py-2.5 rounded-2xl font-medium text-sm transition flex items-center gap-3 tab-btn" data-tab="admin_scan"><i class="fa-solid fa-barcode text-indigo-600 mr-3"></i>Skaner / Kod qidiruv</button>` : ''}
-                                ${hasAdminPerm('admin_bolimlar') ? `<button onclick="checkAdminPasswordAndSwitch('admin_bolimlar')" class="w-full text-left px-4 py-2.5 rounded-2xl font-medium text-sm transition flex items-center gap-3 tab-btn" data-tab="admin_bolimlar"><i class="fa-solid fa-palette text-pink-500 mr-3"></i>Boâ€˜limlar koâ€˜rinishi</button>` : ''}
+                                ${hasAdminPerm('admin_bolimlar') ? `<button onclick="checkAdminPasswordAndSwitch('admin_bolimlar')" class="w-full text-left px-4 py-2.5 rounded-2xl font-medium text-sm transition flex items-center gap-3 tab-btn" data-tab="admin_bolimlar"><i class="fa-solid fa-palette text-pink-500 mr-3"></i>Bo‘limlar ko‘rinishi</button>` : ''}
                                 ${hasAdminPerm('admin_yangilik') ? `<button onclick="checkAdminPasswordAndSwitch('admin_yangilik')" class="w-full text-left px-4 py-2.5 rounded-2xl font-medium text-sm transition flex items-center gap-3 tab-btn" data-tab="admin_yangilik"><i class="fa-regular fa-bullhorn text-purple-500 mr-3"></i>Yangiliklar</button>` : ''}
                                 ${hasAdminPerm('admin_xabarlar') ? `<button onclick="checkAdminPasswordAndSwitch('admin_xabarlar')" class="w-full text-left px-4 py-2.5 rounded-2xl font-medium text-sm transition flex items-center gap-3 tab-btn" data-tab="admin_xabarlar"><i class="fa-regular fa-comments text-purple-500 mr-3"></i>Xabarlar</button>` : ''}
                                 ${hasAdminPerm('admin_texnik') ? `<button onclick="checkAdminPasswordAndSwitch('admin_texnik')" class="w-full text-left px-4 py-2.5 rounded-2xl font-medium text-sm transition flex items-center gap-3 tab-btn" data-tab="admin_texnik"><i class="fa-regular fa-wrench text-purple-500 mr-3"></i>Texnik ishlar</button>` : ''}
@@ -435,7 +435,7 @@
             updateCartBadge();
             const first = document.querySelector('.tab-btn');
             if (first) { const t = first.dataset.tab; if (t.startsWith('admin_')) window.checkAdminPasswordAndSwitch(t); else window.switchTab(t); }
-            else document.getElementById('tabContent').innerHTML = `<div class="bg-white/70 p-6 rounded-3xl shadow-sm border text-center text-gray-400 font-semibold">Hech qanday funksiya yoâ€˜q</div>`;
+            else document.getElementById('tabContent').innerHTML = `<div class="bg-white/70 p-6 rounded-3xl shadow-sm border text-center text-gray-400 font-semibold">Hech qanday funksiya yo‘q</div>`;
         }
 
         async function updateBadges() {
@@ -450,9 +450,9 @@
         window.logoutUser = async function(id) { await update(ref(db, `users/${id}`), { status: 'offline', lastSeen: new Date().toISOString() }); sessionStorage.removeItem(`auth_${id}`); sessionStorage.removeItem(`admin_verified_${id}`); CACHE.user = null; initSystem(); };
         window.openAdminGate = async function() { const user = await getCurrentUser(); if (!user || user.role !== 'admin') return; sessionStorage.removeItem(`admin_verified_${user.id}`); window.checkAdminPasswordAndSwitch('admin_arizalar'); };
         window.checkAdminPasswordAndSwitch = async function(tab) {
-            const user = await getCurrentUser(); if (!user || user.role !== 'admin') { alert("Huquq yoâ€˜q!"); return; }
+            const user = await getCurrentUser(); if (!user || user.role !== 'admin') { alert("Huquq yo‘q!"); return; }
             const allowed = await hasAdminPermFor(user.id, tab);
-            if (!allowed && tab !== 'admin_admin_ruxsatlar' && tab !== 'admin_panel') { alert("Bu boâ€˜lim sizga yopilgan!"); return; }
+            if (!allowed && tab !== 'admin_admin_ruxsatlar' && tab !== 'admin_panel') { alert("Bu bo‘lim sizga yopilgan!"); return; }
             if (sessionStorage.getItem(`admin_verified_${user.id}`) === "true") { window.switchTab(tab); return; }
             const p = prompt("Admin paroli:"); if (p === "900") { sessionStorage.setItem(`admin_verified_${user.id}`, "true"); window.switchTab(tab); } else alert("Xato");
         };
@@ -467,11 +467,11 @@
             let title = 'MyForumm';
             if (tab.startsWith('admin_')) {
                 const adminTitles = {
-                    admin_arizalar: 'Arizalar boshqaruvi', admin_sorovnomalar: 'Soâ€˜rovnomalar boshqaruvi',
-                    admin_turlar: 'Ariza turlari', admin_sorovnoma_turlar: 'Soâ€˜rovnoma turlari',
+                    admin_arizalar: 'Arizalar boshqaruvi', admin_sorovnomalar: 'So‘rovnomalar boshqaruvi',
+                    admin_turlar: 'Ariza turlari', admin_sorovnoma_turlar: 'So‘rovnoma turlari',
                     admin_statistika: 'Statistika', admin_holatlar: 'Holatlar', admin_users: 'Foydalanuvchilar',
                     admin_ruxsatlar: 'Ruxsatlar', admin_mahsulotlar: 'Mahsulotlar', admin_buyurtmalar: 'Buyurtmalar',
-                    admin_buyurtma_maydonlar: 'Buyurtma maydonlari', admin_scan: 'Skaner', admin_bolimlar: 'Boâ€˜limlar',
+                    admin_buyurtma_maydonlar: 'Buyurtma maydonlari', admin_scan: 'Skaner', admin_bolimlar: 'Bo‘limlar',
                     admin_yangilik: 'Yangiliklar', admin_xabarlar: 'Xabarlar', admin_texnik: 'Texnik ishlar',
                     admin_admin_ruxsatlar: 'Admin ruxsatlari', admin_fikrlar: 'Fikrlar'
                 };
@@ -533,7 +533,7 @@
             });
         }
         window.switchToProfile = async function(id) { const s = await get(ref(db, `users/${id}`)); if (!s.exists()) { alert("ID topilmadi"); return; } currentProfileId = id; localStorage.setItem('current_profile_id', currentProfileId); loadSavat(); loadSavatSelected(); CACHE.user = null; renderAuthOrDashboard(); };
-        window.removeProfileItem = function(id) { if (confirm("Oâ€˜chirilsin?")) { profiles = profiles.filter(p => p.id !== id); localStorage.setItem('app_profiles', JSON.stringify(profiles)); sessionStorage.removeItem(`auth_${id}`); sessionStorage.removeItem(`admin_verified_${id}`); if (currentProfileId === id) { currentProfileId = profiles.length ? profiles[0].id : null; localStorage.setItem('current_profile_id', currentProfileId || ''); } CACHE.user = null; initSystem(); } };
+        window.removeProfileItem = function(id) { if (confirm("O‘chirilsin?")) { profiles = profiles.filter(p => p.id !== id); localStorage.setItem('app_profiles', JSON.stringify(profiles)); sessionStorage.removeItem(`auth_${id}`); sessionStorage.removeItem(`admin_verified_${id}`); if (currentProfileId === id) { currentProfileId = profiles.length ? profiles[0].id : null; localStorage.setItem('current_profile_id', currentProfileId || ''); } CACHE.user = null; initSystem(); } };
 
         async function getArizaTurlariCached(force = false) { if (!force && CACHE.arizaTurlari) return CACHE.arizaTurlari; const s = await get(ref(db, 'arizaTurlari')); CACHE.arizaTurlari = s.exists() ? s.val() : {}; return CACHE.arizaTurlari; }
         async function getArizalarCached(force = false) { if (!force && CACHE.arizalar) return CACHE.arizalar; const s = await get(ref(db, 'arizalar')); CACHE.arizalar = s.exists() ? s.val() : {}; return CACHE.arizalar; }
@@ -562,9 +562,9 @@
                 modal.innerHTML = `
                     <div class="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-4 modal-overlay" onclick="if(event.target===this)closeModal()">
                         <button onclick="closeModal()" class="absolute top-4 right-4 text-white text-3xl w-11 h-11 rounded-full bg-white/10 hover:bg-white/20">&times;</button>
-                        ${urls.length > 1 ? `<button onclick="event.stopPropagation();window._imgPrev()" class="absolute left-2 md:left-6 text-white text-5xl w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center">â€¹</button>` : ''}
+                        ${urls.length > 1 ? `<button onclick="event.stopPropagation();window._imgPrev()" class="absolute left-2 md:left-6 text-white text-5xl w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center">‹</button>` : ''}
                         <img src="${urls[idx]}" class="max-w-full max-h-[88vh] object-contain rounded-2xl shadow-2xl" onclick="event.stopPropagation()">
-                        ${urls.length > 1 ? `<button onclick="event.stopPropagation();window._imgNext()" class="absolute right-2 md:right-6 text-white text-5xl w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center">â€º</button>` : ''}
+                        ${urls.length > 1 ? `<button onclick="event.stopPropagation();window._imgNext()" class="absolute right-2 md:right-6 text-white text-5xl w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center">›</button>` : ''}
                         ${urls.length > 1 ? `<div class="absolute bottom-6 left-1/2 -translate-x-1/2 text-white text-sm bg-black/60 px-4 py-1 rounded-full">${idx+1} / ${urls.length}</div>` : ''}
                     </div>
                 `;
@@ -905,7 +905,7 @@
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
                         <div>
                             <h2 class="text-2xl font-bold text-gray-800"><i class="fa-solid fa-cart-shopping text-amber-500 mr-3"></i>Savat</h2>
-                            <p class="text-sm text-gray-500">Buyurtma bermoqchi bo'lgan mahsulotlarni belgilang â˜‘ï¸</p>
+                            <p class="text-sm text-gray-500">Buyurtma bermoqchi bo'lgan mahsulotlarni belgilang ☑️</p>
                         </div>
                         <div class="flex gap-2 flex-wrap">
                             <button id="selectAllCartBtn" class="text-xs bg-emerald-100 text-emerald-700 px-4 py-2 rounded-2xl font-bold hover:bg-emerald-200 transition"><i class="fa-solid fa-check-double mr-1"></i>Hammasini tanlash</button>
@@ -945,13 +945,13 @@
                             ${rasm}
                             <div class="flex-1 space-y-1">
                                 <h3 class="font-bold text-gray-800">${m.nomi}</h3>
-                                <p class="text-xs text-gray-500">ID: ${mId} Â· Omborda: ${maxSoni} dona</p>
+                                <p class="text-xs text-gray-500">ID: ${mId} · Omborda: ${maxSoni} dona</p>
                                 ${variantText}
-                                <p class="text-sm font-extrabold text-purple-700">${it.narx.toLocaleString()} so'm Ã— ${it.soni}</p>
+                                <p class="text-sm font-extrabold text-purple-700">${it.narx.toLocaleString()} so'm × ${it.soni}</p>
                                 <p class="text-xs text-gray-600">Jami: <b>${sum.toLocaleString()} so'm</b></p>
                             </div>
                             <div class="flex items-center gap-2">
-                                <button onclick="changeCartQty('${key}',-1)" class="bg-gray-100 text-gray-700 w-9 h-9 rounded-full font-bold hover:bg-gray-200">âˆ’</button>
+                                <button onclick="changeCartQty('${key}',-1)" class="bg-gray-100 text-gray-700 w-9 h-9 rounded-full font-bold hover:bg-gray-200">−</button>
                                 <span class="w-8 text-center font-bold">${it.soni}</span>
                                 <button onclick="changeCartQty('${key}',1)" class="bg-gray-100 text-gray-700 w-9 h-9 rounded-full font-bold hover:bg-gray-200">+</button>
                                 <button onclick="removeFromCart('${key}')" class="bg-red-50 text-red-600 px-3 py-2 rounded-2xl font-bold text-xs hover:bg-red-100 ml-2"><i class="fa-regular fa-trash"></i></button>
@@ -969,7 +969,7 @@
                         </div>
                         ${countSelected > 0
                             ? `<button id="savatCheckoutBtn" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-8 py-3.5 rounded-2xl font-bold shadow hover:shadow-lg"><i class="fa-solid fa-credit-card mr-2"></i>Tanlanganlarni buyurtma qilish (${countSelected} dona)</button>`
-                            : `<button disabled class="w-full bg-gray-200 text-gray-400 px-8 py-3.5 rounded-2xl font-bold cursor-not-allowed"><i class="fa-solid fa-hand-pointer mr-2"></i>Avval mahsulotlarni belgilang â˜‘ï¸</button>`}
+                            : `<button disabled class="w-full bg-gray-200 text-gray-400 px-8 py-3.5 rounded-2xl font-bold cursor-not-allowed"><i class="fa-solid fa-hand-pointer mr-2"></i>Avval mahsulotlarni belgilang ☑️</button>`}
                         <div class="text-center text-xs text-gray-400">Butun savat: ${jamiAll.toLocaleString()} so'm (${countAll} dona)</div>
                     </div>
                 ` : '';
@@ -1017,7 +1017,7 @@
         window.openCheckoutModal = async function() {
             const user = await getCurrentUser(); if (!user) return;
             const selectedKeys = Object.keys(savatSelected).filter(k => savat[k]);
-            if (!selectedKeys.length) { alert("Avval mahsulotlarni belgilang! â˜‘ï¸"); return; }
+            if (!selectedKeys.length) { alert("Avval mahsulotlarni belgilang! ☑️"); return; }
             const mahsulotlar = await getMahsulotlarCached();
             const maydonlar = await getBuyurtmaMaydonlar(true);
             const modal = document.getElementById('modalContainer');
@@ -1053,7 +1053,7 @@
                 const m = mahsulotlar[mId]; if (!m) continue;
                 const sum = it.narx * it.soni; jami += sum;
                 const variantText = it.variantlar ? ` <span class="text-xs text-purple-500">(${it.variantlar})</span>` : '';
-                itemsHtml += `<div class="flex justify-between items-center border-b py-2 text-sm"><span>${m.nomi}${variantText} <b>Ã—${it.soni}</b></span><span class="font-bold">${sum.toLocaleString()} so'm</span></div>`;
+                itemsHtml += `<div class="flex justify-between items-center border-b py-2 text-sm"><span>${m.nomi}${variantText} <b>×${it.soni}</b></span><span class="font-bold">${sum.toLocaleString()} so'm</span></div>`;
             }
             modal.innerHTML = `
                 <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto modal-overlay">
@@ -1154,9 +1154,9 @@
             container.innerHTML = `
                 <div id="printArea" class="bg-white/90 backdrop-blur-sm p-8 rounded-3xl shadow-xl border border-emerald-100 text-center space-y-6">
                     <div class="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto text-5xl shadow-lg"><i class="fa-regular fa-circle-check"></i></div>
-                    <div><h2 class="text-3xl font-extrabold text-gray-800">Buyurtma qabul qilindi!</h2><p class="text-gray-600">Raqam: <strong class="text-purple-600 text-xl">${b.id}</strong> Â· ID: ${b.userId}</p><p class="text-xs text-gray-400">${new Date(b.sana).toLocaleString()}</p></div>
+                    <div><h2 class="text-3xl font-extrabold text-gray-800">Buyurtma qabul qilindi!</h2><p class="text-gray-600">Raqam: <strong class="text-purple-600 text-xl">${b.id}</strong> · ID: ${b.userId}</p><p class="text-xs text-gray-400">${new Date(b.sana).toLocaleString()}</p></div>
                     <div class="flex flex-wrap justify-center gap-4">
-                        <div class="bg-purple-50 p-3 rounded-2xl"><div class="text-[10px] uppercase font-bold text-purple-700">5 xonali kod</div><div class="text-2xl font-extrabold text-purple-700 tracking-widest">${b.kod5 || 'â€”'}</div></div>
+                        <div class="bg-purple-50 p-3 rounded-2xl"><div class="text-[10px] uppercase font-bold text-purple-700">5 xonali kod</div><div class="text-2xl font-extrabold text-purple-700 tracking-widest">${b.kod5 || '—'}</div></div>
                     </div>
                     <div><svg id="bcv" class="mx-auto bg-white p-2 rounded-2xl"></svg></div>
                     <div class="bg-purple-50 p-4 rounded-2xl inline-block"><span class="text-sm">Jami: <b class="text-purple-700 text-lg">${b.jami.toLocaleString()} so'm</b></span></div>
@@ -1316,7 +1316,7 @@
                     const eslatma = holatData ? holatData.eslatma : '';
 
                     let shtrixHtml = showShtrix ? `<div class="flex-1 min-w-[150px]"><svg class="ucv" data-code="${b.shtrixKod || b.id}"></svg></div>` : '';
-                    let kod5Html = showKod5 ? `<div class="text-center"><div class="text-[10px] uppercase font-bold text-amber-700">5 xonali kod</div><div class="text-xl font-extrabold text-amber-800 tracking-widest">${b.kod5 || 'â€”'}</div></div>` : '';
+                    let kod5Html = showKod5 ? `<div class="text-center"><div class="text-[10px] uppercase font-bold text-amber-700">5 xonali kod</div><div class="text-xl font-extrabold text-amber-800 tracking-widest">${b.kod5 || '—'}</div></div>` : '';
                     let eslatmaHtml = eslatma ? `<div class="bg-yellow-50 border border-yellow-200 p-2 rounded-xl text-xs text-yellow-800"><i class="fa-regular fa-note-sticky mr-1"></i>${eslatma}</div>` : '';
 
                     let fikrlarHtml = '';
@@ -1348,7 +1348,7 @@
                                     ${showRasm && it.mahsulotRasm ? `<img src="${it.mahsulotRasm}" class="w-12 h-12 object-contain bg-gray-50 rounded-lg border">` : ''}
                                     <div class="flex-1 min-w-0">
                                         <div class="font-bold text-sm text-gray-800 truncate">${it.mahsulotNomi}</div>
-                                        <div class="text-xs text-gray-500">${it.narx.toLocaleString()} so'm Ã— ${it.soni} dona ${it.variantlar ? 'Â· ' + it.variantlar : ''}</div>
+                                        <div class="text-xs text-gray-500">${it.narx.toLocaleString()} so'm × ${it.soni} dona ${it.variantlar ? '· ' + it.variantlar : ''}</div>
                                     </div>
                                     <div class="font-extrabold text-purple-700 text-sm flex-shrink-0">${(it.jami || 0).toLocaleString()} so'm</div>
                                 </div>
@@ -1512,7 +1512,7 @@
                     const m = mahsulotlar[mId];
                     const mSoni = parseInt(m.soni) || 0;
                     if (mSoni <= 0) continue;
-                    opts += `<option value="${mId}">${m.nomi} â€” ${m.narx} so'm (${mSoni} dona)</option>`;
+                    opts += `<option value="${mId}">${m.nomi} — ${m.narx} so'm (${mSoni} dona)</option>`;
                 }
                 return opts;
             }
@@ -1530,18 +1530,18 @@
                         <label class="text-[10px] font-bold uppercase text-amber-700">5 xonali kod ${showKod5 ? '' : '<span class="text-red-500">(yashirilgan)</span>'}</label>
                         <input type="text" id="uebKod5Input" value="${b.kod5 || ''}" class="w-full border-2 border-amber-300 px-3 py-2 rounded-xl font-bold tracking-widest bg-white">
                         <div class="flex gap-1 mt-1 flex-wrap">
-                            <button onclick="saveUebKod5('${bId}')" class="bg-emerald-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold">ðŸ’¾ Saqlash</button>
-                            <button onclick="regenerateKod5('buyurtma','${bId}')" class="bg-blue-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold">ðŸ”„ Qayta</button>
-                            <button onclick="deleteKod5('buyurtma','${bId}')" class="bg-red-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold">ðŸ—‘ O'chirish</button>
+                            <button onclick="saveUebKod5('${bId}')" class="bg-emerald-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold">💾 Saqlash</button>
+                            <button onclick="regenerateKod5('buyurtma','${bId}')" class="bg-blue-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold">🔄 Qayta</button>
+                            <button onclick="deleteKod5('buyurtma','${bId}')" class="bg-red-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold">🗑 O'chirish</button>
                         </div>
                     </div>
                     <div>
                         <label class="text-[10px] font-bold uppercase text-amber-700">Shtrix kod ${showShtrix ? '' : '<span class="text-red-500">(yashirilgan)</span>'}</label>
                         <input type="text" id="uebShtrixInput" value="${b.shtrixKod || ''}" class="w-full border-2 border-amber-300 px-3 py-2 rounded-xl text-xs bg-white">
                         <div class="flex gap-1 mt-1 flex-wrap">
-                            <button onclick="saveUebShtrix('${bId}')" class="bg-emerald-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold">ðŸ’¾ Saqlash</button>
-                            <button onclick="regenerateShtrixKod('buyurtma','${bId}')" class="bg-blue-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold">ðŸ”„ Qayta</button>
-                            <button onclick="deleteShtrixKod('buyurtma','${bId}')" class="bg-red-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold">ðŸ—‘ O'chirish</button>
+                            <button onclick="saveUebShtrix('${bId}')" class="bg-emerald-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold">💾 Saqlash</button>
+                            <button onclick="regenerateShtrixKod('buyurtma','${bId}')" class="bg-blue-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold">🔄 Qayta</button>
+                            <button onclick="deleteShtrixKod('buyurtma','${bId}')" class="bg-red-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold">🗑 O'chirish</button>
                         </div>
                     </div>
                     <div class="md:col-span-2 text-[10px] text-gray-500 italic"><i class="fa-solid fa-shield-halved mr-1"></i>Faqat admin shtrix va 5 xonali kodni o'zgartira oladi.</div>
@@ -1559,7 +1559,7 @@
             modal.innerHTML = `
                 <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto modal-overlay">
                     <div class="bg-white p-6 md:p-8 rounded-3xl shadow-2xl w-full max-w-lg space-y-4 max-h-[90vh] overflow-y-auto border border-purple-100">
-                        <div class="flex justify-between items-center border-b pb-3"><h3 class="text-2xl font-bold text-gray-800">Buyurtmani tahrirlash â„–${b.id}</h3><button onclick="closeModal()" class="text-gray-400 hover:text-gray-700 text-2xl font-bold px-2">&times;</button></div>
+                        <div class="flex justify-between items-center border-b pb-3"><h3 class="text-2xl font-bold text-gray-800">Buyurtmani tahrirlash №${b.id}</h3><button onclick="closeModal()" class="text-gray-400 hover:text-gray-700 text-2xl font-bold px-2">&times;</button></div>
 
                         ${adminOnlyKodControls}
 
@@ -1897,7 +1897,7 @@
             modal.innerHTML = `
                 <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto modal-overlay">
                     <div class="bg-white p-6 md:p-8 rounded-3xl shadow-2xl w-full max-w-lg space-y-4 max-h-[90vh] overflow-y-auto border border-purple-100">
-                        <div class="flex justify-between items-center border-b pb-3"><h3 class="text-2xl font-bold text-gray-800">Tahrirlash Â· ID: ${mId}</h3><button onclick="closeModal()" class="text-gray-400 hover:text-gray-700 text-2xl font-bold px-2">&times;</button></div>
+                        <div class="flex justify-between items-center border-b pb-3"><h3 class="text-2xl font-bold text-gray-800">Tahrirlash · ID: ${mId}</h3><button onclick="closeModal()" class="text-gray-400 hover:text-gray-700 text-2xl font-bold px-2">&times;</button></div>
                         <div><label class="text-xs font-bold text-gray-700 uppercase">Nomi</label><input type="text" id="editMahsulotNomi" value="${m.nomi || ''}" class="w-full border-2 border-purple-200 px-4 py-3 rounded-2xl"></div>
                         <div><label class="text-xs font-bold text-gray-700 uppercase">Tavsif</label><textarea id="editMahsulotTavsif" rows="2" class="w-full border-2 border-purple-200 px-4 py-3 rounded-2xl">${m.tavsif || ''}</textarea></div>
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -2120,7 +2120,7 @@
                     let holatOptions = ''; for (let hKey in holatlar) { const h = holatlar[hKey]; holatOptions += `<option value="${h.yozuv}" ${b.holat === h.yozuv ? 'selected' : ''}>${h.yozuv}</option>`; }
 
                     let shtrixHtml = showShtrix ? `<div class="flex-1 min-w-[150px]"><svg class="acv" data-code="${b.shtrixKod || b.id}"></svg></div>` : '';
-                    let kod5Html = showKod5 ? `<div class="text-center"><div class="text-[10px] uppercase font-bold text-amber-700">5 xonali kod</div><div class="text-xl font-extrabold text-amber-800 tracking-widest">${b.kod5 || 'â€”'}</div></div>` : '';
+                    let kod5Html = showKod5 ? `<div class="text-center"><div class="text-[10px] uppercase font-bold text-amber-700">5 xonali kod</div><div class="text-xl font-extrabold text-amber-800 tracking-widest">${b.kod5 || '—'}</div></div>` : '';
                     let eslatmaHtml = eslatma ? `<div class="bg-yellow-50 border border-yellow-200 p-2 rounded-xl text-xs text-yellow-800"><i class="fa-regular fa-note-sticky mr-1"></i>${eslatma}</div>` : '';
 
                     let itemsListHtml = '';
@@ -2134,7 +2134,7 @@
                                     ${showRasm && it.mahsulotRasm ? `<img src="${it.mahsulotRasm}" class="w-12 h-12 object-contain bg-gray-50 rounded-lg border">` : ''}
                                     <div class="flex-1 min-w-0">
                                         <div class="font-bold text-sm text-gray-800 truncate">${it.mahsulotNomi}</div>
-                                        <div class="text-xs text-gray-500">${it.narx.toLocaleString()} so'm Ã— ${it.soni} ${it.variantlar ? 'Â· ' + it.variantlar : ''}</div>
+                                        <div class="text-xs text-gray-500">${it.narx.toLocaleString()} so'm × ${it.soni} ${it.variantlar ? '· ' + it.variantlar : ''}</div>
                                     </div>
                                     <div class="font-extrabold text-purple-700 text-sm flex-shrink-0">${(it.jami || 0).toLocaleString()} so'm</div>
                                 </div>
@@ -2159,8 +2159,8 @@
                             </div>
                             ${itemsListHtml}
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-                                <div class="bg-blue-50 p-2 rounded-xl border border-blue-100">Tel: <b>${b.tel || 'â€”'}</b></div>
-                                <div class="bg-emerald-50 p-2 rounded-xl border border-emerald-100">Manzil: <b>${b.manzil || 'â€”'}</b></div>
+                                <div class="bg-blue-50 p-2 rounded-xl border border-blue-100">Tel: <b>${b.tel || '—'}</b></div>
+                                <div class="bg-emerald-50 p-2 rounded-xl border border-emerald-100">Manzil: <b>${b.manzil || '—'}</b></div>
                                 ${b.izoh ? `<div class="bg-gray-50 p-2 rounded-xl border col-span-2 italic">Izoh: ${b.izoh}</div>` : ''}
                             </div>
                             <div class="flex justify-between items-center pt-2 border-t"><span class="font-bold">Jami:</span><span class="font-extrabold text-purple-700 text-lg">${(b.jami || 0).toLocaleString()} so'm</span></div>
@@ -2168,7 +2168,7 @@
                         </div>
                     `;
                 }
-                if (!found) html = `<div class="text-center py-10 text-gray-400">Buyurtmalar yoâ€˜q</div>`;
+                if (!found) html = `<div class="text-center py-10 text-gray-400">Buyurtmalar yo‘q</div>`;
                 list.innerHTML = html;
                 document.querySelectorAll('svg.acv').forEach(svg => { try { JsBarcode(svg, svg.dataset.code, { format: "CODE128", width: 1.2, height: 44, fontSize: 10 }); } catch(e) {} });
             }
@@ -2218,8 +2218,8 @@
                             ${m.majburiy === false ? '<span class="text-gray-400 ml-2">(ixtiyoriy)</span>' : '<span class="text-red-500 ml-2">*</span>'}
                         </div>
                         <div class="flex gap-1">
-                            <button onclick="moveBuyurtmaMaydonUp('${mId}')" class="text-gray-600 bg-gray-100 px-2 py-1 rounded-2xl font-bold text-xs">â¬†ï¸</button>
-                            <button onclick="moveBuyurtmaMaydonDown('${mId}')" class="text-gray-600 bg-gray-100 px-2 py-1 rounded-2xl font-bold text-xs">â¬‡ï¸</button>
+                            <button onclick="moveBuyurtmaMaydonUp('${mId}')" class="text-gray-600 bg-gray-100 px-2 py-1 rounded-2xl font-bold text-xs">⬆️</button>
+                            <button onclick="moveBuyurtmaMaydonDown('${mId}')" class="text-gray-600 bg-gray-100 px-2 py-1 rounded-2xl font-bold text-xs">⬇️</button>
                             <button onclick="openEditBuyurtmaMaydonModal('${mId}')" class="text-blue-600 bg-blue-50 px-3 py-1 rounded-2xl font-bold text-xs"><i class="fa-regular fa-pen"></i></button>
                             <button onclick="deleteBuyurtmaMaydon('${mId}')" class="text-red-500 bg-red-50 px-3 py-1 rounded-2xl font-bold text-xs"><i class="fa-regular fa-trash"></i></button>
                         </div>
@@ -2406,18 +2406,18 @@
                         <span class="px-3 py-1 rounded-full text-xs font-bold" style="${b.holatRangi || ''}">${b.holat}</span>
                     </div>
                     <div class="grid grid-cols-2 gap-2 text-xs">
-                        ${showKod5 ? `<div class="bg-white p-2 rounded-xl border">5 xonali kod: <b class="tracking-widest">${b.kod5 || 'â€”'}</b></div>` : ''}
-                        ${showShtrix ? `<div class="bg-white p-2 rounded-xl border">Shtrix: <b>${b.shtrixKod || 'â€”'}</b></div>` : ''}
+                        ${showKod5 ? `<div class="bg-white p-2 rounded-xl border">5 xonali kod: <b class="tracking-widest">${b.kod5 || '—'}</b></div>` : ''}
+                        ${showShtrix ? `<div class="bg-white p-2 rounded-xl border">Shtrix: <b>${b.shtrixKod || '—'}</b></div>` : ''}
                         <div class="bg-white p-2 rounded-xl border">User: <b>${b.userId} (${b.userRole})</b></div>
                         <div class="bg-white p-2 rounded-xl border">Sana: <b>${new Date(b.sana).toLocaleString()}</b></div>
-                        <div class="bg-white p-2 rounded-xl border col-span-2">Tel: <b>${b.tel || 'â€”'}</b></div>
-                        <div class="bg-white p-2 rounded-xl border col-span-2">Manzil: <b>${b.manzil || 'â€”'}</b></div>
+                        <div class="bg-white p-2 rounded-xl border col-span-2">Tel: <b>${b.tel || '—'}</b></div>
+                        <div class="bg-white p-2 rounded-xl border col-span-2">Manzil: <b>${b.manzil || '—'}</b></div>
                         ${b.izoh ? `<div class="bg-white p-2 rounded-xl border col-span-2">Izoh: <b>${b.izoh}</b></div>` : ''}
                     </div>
                     ${eslatma ? `<div class="bg-yellow-50 border border-yellow-200 p-2 rounded-xl text-xs text-yellow-800"><i class="fa-regular fa-note-sticky mr-1"></i>${eslatma}</div>` : ''}
                     <div class="bg-white p-3 rounded-2xl border">
                         <h4 class="text-xs font-bold uppercase mb-2">Mahsulotlar (${items.length} ta):</h4>
-                        ${items.map((it, idx) => `<div class="flex justify-between border-b py-1 text-xs"><span>${idx+1}. ${it.mahsulotNomi} Ã—${it.soni} ${it.variantlar ? '(' + it.variantlar + ')' : ''}</span><b>${(it.jami||0).toLocaleString()} so'm</b></div>`).join('')}
+                        ${items.map((it, idx) => `<div class="flex justify-between border-b py-1 text-xs"><span>${idx+1}. ${it.mahsulotNomi} ×${it.soni} ${it.variantlar ? '(' + it.variantlar + ')' : ''}</span><b>${(it.jami||0).toLocaleString()} so'm</b></div>`).join('')}
                         <div class="flex justify-between pt-2 mt-2 border-t-2 font-extrabold">Jami <span class="text-emerald-700">${(b.jami||0).toLocaleString()} so'm</span></div>
                     </div>
                     ${showShtrix ? `<div><svg id="scan_bc"></svg></div>` : ''}
@@ -2454,8 +2454,8 @@
                         <span class="px-3 py-1 rounded-full text-xs font-bold" style="${a.holatRangi || ''}">${a.holat}</span>
                     </div>
                     <div class="grid grid-cols-2 gap-2 text-xs">
-                        ${showKod5 ? `<div class="bg-white p-2 rounded-xl border">5 xonali kod: <b class="tracking-widest">${a.kod5 || 'â€”'}</b></div>` : ''}
-                        ${showShtrix ? `<div class="bg-white p-2 rounded-xl border">Shtrix: <b>${a.shtrixKod || 'â€”'}</b></div>` : ''}
+                        ${showKod5 ? `<div class="bg-white p-2 rounded-xl border">5 xonali kod: <b class="tracking-widest">${a.kod5 || '—'}</b></div>` : ''}
+                        ${showShtrix ? `<div class="bg-white p-2 rounded-xl border">Shtrix: <b>${a.shtrixKod || '—'}</b></div>` : ''}
                         <div class="bg-white p-2 rounded-xl border">User: <b>${a.userId} (${a.userRole})</b></div>
                         <div class="bg-white p-2 rounded-xl border">Turi: <b>${turName}</b></div>
                         <div class="bg-white p-2 rounded-xl border col-span-2">Sana: <b>${new Date(a.sana).toLocaleString()}</b></div>
@@ -2549,7 +2549,7 @@
                     const showKod5 = holatData ? holatData.kod5Korsatish !== false : true;
                     const eslatma = holatData ? holatData.eslatma : '';
 
-                    const kod5Html = showKod5 ? `<div class="text-center"><div class="text-[10px] uppercase font-bold text-amber-700">5 xonali kod</div><div class="text-xl font-extrabold text-amber-800 tracking-widest">${a.kod5 || 'â€”'}</div></div>` : '';
+                    const kod5Html = showKod5 ? `<div class="text-center"><div class="text-[10px] uppercase font-bold text-amber-700">5 xonali kod</div><div class="text-xl font-extrabold text-amber-800 tracking-widest">${a.kod5 || '—'}</div></div>` : '';
                     const shtrixHtml = showShtrix ? `<div class="flex-1 min-w-[150px]"><svg class="arcv" data-code="${a.shtrixKod || a.id}"></svg></div>` : '';
                     const eslatmaHtml = eslatma ? `<div class="bg-yellow-50 border border-yellow-200 p-2 rounded-xl text-xs text-yellow-800"><i class="fa-regular fa-note-sticky mr-1"></i>${eslatma}</div>` : '';
 
@@ -2568,7 +2568,7 @@
                         <div class="pt-3 border-t space-y-2"><label class="block text-xs font-bold text-gray-700 uppercase">Javob:</label><textarea id="adminJavobInput_${id}" rows="2" class="w-full border-2 border-indigo-200 px-4 py-3 rounded-2xl text-sm bg-gray-50">${a.javob || ''}</textarea><button onclick="saveAdminJavob('${id}')" class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-5 py-2 rounded-2xl text-xs font-bold shadow hover:shadow-lg">Saqlash</button></div>
                     </div>`;
                 }
-                if (!found) html += `<div class="text-center py-10 text-gray-400">Arizalar yoâ€˜q</div>`;
+                if (!found) html += `<div class="text-center py-10 text-gray-400">Arizalar yo‘q</div>`;
                 list.innerHTML = html;
                 document.querySelectorAll('svg.arcv').forEach(svg => { try { JsBarcode(svg, svg.dataset.code, { format: "CODE128", width: 1.2, height: 44, fontSize: 10 }); } catch(e) {} });
             }
@@ -2594,7 +2594,7 @@
             const sorovlar = await getSorovnomalar(true); const turlar = await getSorovnomaTurlari(true); const holatlar = await getHolatlarCached(true);
             container.innerHTML = `
                 <div class="bg-white/70 backdrop-blur-sm p-6 rounded-3xl shadow-sm border border-emerald-100 space-y-4">
-                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3"><div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-rectangle-list text-emerald-500 mr-3"></i>Soâ€˜rovnomalar boshqaruvi</h2></div><div class="w-full md:w-72"><input type="text" id="adminSorovSearch" placeholder="Qidirish..." class="w-full px-4 py-3 border-2 border-emerald-200 rounded-2xl focus:ring-4 focus:ring-emerald-300 bg-white/80"></div></div>
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3"><div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-rectangle-list text-emerald-500 mr-3"></i>So‘rovnomalar boshqaruvi</h2></div><div class="w-full md:w-72"><input type="text" id="adminSorovSearch" placeholder="Qidirish..." class="w-full px-4 py-3 border-2 border-emerald-200 rounded-2xl focus:ring-4 focus:ring-emerald-300 bg-white/80"></div></div>
                     <div id="adminSorovlarListContainer" class="space-y-4"></div>
                 </div>
             `;
@@ -2603,7 +2603,7 @@
                 let html = ''; let found = false; const f = filter.toLowerCase();
                 for (let id in sorovlar) {
                     const s = sorovlar[id]; if (!s.korinsin) continue;
-                    const turName = turlar[s.turKey] ? turlar[s.turKey].nomi : "Soâ€˜rovnoma";
+                    const turName = turlar[s.turKey] ? turlar[s.turKey].nomi : "So‘rovnoma";
                     let searchText = `${s.id} ${s.userId} ${turName} ${s.holat} ${s.javob || ''}`;
                     if (f && !searchText.toLowerCase().includes(f)) continue;
                     found = true;
@@ -2611,7 +2611,7 @@
                     let holatOptions = ''; for (let hKey in holatlar) { const h = holatlar[hKey]; holatOptions += `<option value="${h.yozuv}" ${s.holat === h.yozuv ? 'selected' : ''}>${h.yozuv}</option>`; }
                     html += `<div class="border p-5 rounded-3xl bg-white shadow-sm space-y-4"><div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b pb-3"><div><span class="text-xs font-bold text-gray-400">ID:</span><span class="font-bold text-emerald-600 text-lg">${s.id}</span><span class="ml-3 text-xs bg-gray-100 px-3 py-1 rounded-2xl font-semibold">ID: ${s.userId} (${s.userRole})</span></div><div class="flex items-center gap-2"><select onchange="adminUpdateSorovHolat('${id}', this.value)" class="border-2 border-emerald-200 px-3 py-1.5 rounded-2xl text-xs font-bold bg-white">${holatOptions}</select><button onclick="adminDeleteSorov('${id}')" class="bg-red-50 text-red-600 px-4 py-1.5 rounded-2xl text-xs font-bold hover:bg-red-100"><i class="fa-regular fa-trash mr-1"></i>O'chirish</button></div></div><div><p class="text-sm font-semibold">Turi: <span class="text-emerald-600">${turName}</span></p><p class="text-xs text-gray-400">${new Date(s.sana).toLocaleString()}</p></div><div class="grid grid-cols-1 gap-3">${qiymatlarHtml}</div><div class="pt-3 border-t space-y-2"><label class="block text-xs font-bold text-gray-700 uppercase">Javob:</label><textarea id="adminSorovJavobInput_${id}" rows="2" class="w-full border-2 border-emerald-200 px-4 py-3 rounded-2xl text-sm bg-gray-50">${s.javob || ''}</textarea><button onclick="saveAdminSorovJavob('${id}')" class="bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-5 py-2 rounded-2xl text-xs font-bold shadow hover:shadow-lg">Saqlash</button></div></div>`;
                 }
-                if (!found) html += `<div class="text-center py-10 text-gray-400">Soâ€˜rovnomalar yoâ€˜q</div>`;
+                if (!found) html += `<div class="text-center py-10 text-gray-400">So‘rovnomalar yo‘q</div>`;
                 list.innerHTML = html;
             }
             draw();
@@ -2640,7 +2640,7 @@
             for (let aId in arizalar) { const a = arizalar[aId]; if (a.userId === user.id) userTurCounts[a.turKey] = (userTurCounts[a.turKey] || 0) + 1; }
             container.innerHTML = `
                 <div class="bg-white/70 backdrop-blur-sm p-6 rounded-3xl shadow-sm border border-indigo-100 space-y-6">
-                    <div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-file-lines text-indigo-500 mr-3"></i>Ariza</h2><p class="text-sm text-gray-500">Tur tanlang va maydonlarni toâ€˜ldiring</p></div>
+                    <div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-file-lines text-indigo-500 mr-3"></i>Ariza</h2><p class="text-sm text-gray-500">Tur tanlang va maydonlarni to‘ldiring</p></div>
                     <div><label class="block text-sm font-semibold text-gray-700 mb-1">Ariza turi</label>
                         <select id="selectArizaTuri" class="w-full px-4 py-3.5 border-2 border-indigo-200 rounded-2xl focus:ring-4 focus:ring-indigo-300 bg-white/80">
                             <option value="">-- Tanlang --</option>
@@ -2670,7 +2670,7 @@
                             html += `<select data-fid="${mId}" data-ftype="tanlov" data-req="${req}" class="ariza-field w-full px-4 py-3.5 border-2 border-indigo-200 rounded-2xl bg-white" ${req ? 'required' : ''}><option value="">-- Tanlang --</option>${vars.map(v => `<option value="${v}">${v}</option>`).join('')}</select>`;
                         } else {
                             html += `<div class="checkbox-group border-2 border-indigo-200 rounded-2xl p-3 space-y-2" data-fid="${mId}" data-ftype="tanlov" data-req="${req}" data-max="${tanlovSoni}">`;
-                            html += `<div class="text-xs text-indigo-600 font-medium">Kamida 1 ta, koâ€˜pi bilan ${tanlovSoni} ta tanlang</div>`;
+                            html += `<div class="text-xs text-indigo-600 font-medium">Kamida 1 ta, ko‘pi bilan ${tanlovSoni} ta tanlang</div>`;
                             vars.forEach((v) => { html += `<label class="flex items-center gap-2 text-sm"><input type="checkbox" value="${v}" class="ariza-checkbox accent-indigo-600"> ${v}</label>`; });
                             html += `</div>`;
                         }
@@ -2750,7 +2750,7 @@
             container.innerHTML = `
                 <div id="printArea" class="bg-white/90 backdrop-blur-sm p-8 rounded-3xl shadow-xl border border-indigo-100 text-center space-y-6">
                     <div class="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto text-5xl shadow-lg"><i class="fa-regular fa-circle-check"></i></div>
-                    <div><h2 class="text-3xl font-extrabold text-gray-800">Qabul qilindi!</h2><p class="text-gray-600">Raqam: <strong class="text-indigo-600 text-xl">${ariza.id}</strong> Â· ID: ${ariza.userId}</p><p class="text-xs text-gray-400">${new Date(ariza.sana).toLocaleString()}</p></div>
+                    <div><h2 class="text-3xl font-extrabold text-gray-800">Qabul qilindi!</h2><p class="text-gray-600">Raqam: <strong class="text-indigo-600 text-xl">${ariza.id}</strong> · ID: ${ariza.userId}</p><p class="text-xs text-gray-400">${new Date(ariza.sana).toLocaleString()}</p></div>
                     ${ariza.kod5 ? `<div class="flex flex-wrap justify-center gap-4"><div class="bg-indigo-50 p-3 rounded-2xl border border-indigo-200"><div class="text-[10px] uppercase font-bold text-indigo-700">5 xonali kod</div><div class="text-2xl font-extrabold text-indigo-800 tracking-widest">${ariza.kod5}</div></div></div>` : ''}
                     ${ariza.shtrixKod ? `<div><svg id="ariza_bcv" class="mx-auto bg-white p-2 rounded-2xl"></svg></div>` : ''}
                     <div class="flex flex-wrap justify-center gap-4 pt-2"><button id="downloadPdfBtn" class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-2xl font-bold shadow hover:shadow-lg"><i class="fa-regular fa-file-pdf mr-2"></i>PDF</button><button id="downloadScreenshotBtn" class="bg-slate-700 text-white px-6 py-3 rounded-2xl font-bold shadow hover:shadow-lg"><i class="fa-regular fa-camera mr-2"></i>Skrinshot</button><button onclick="switchTab('ariza')" class="bg-gray-200 text-gray-700 px-6 py-3 rounded-2xl font-bold hover:bg-gray-300">Yangi</button></div>
@@ -2773,7 +2773,7 @@
                     files.forEach((f, i) => { imgs += `<div class="bg-slate-900 rounded-xl overflow-hidden p-1 text-center cursor-pointer img-thumb" onclick="openImageViewer(${JSON.stringify(urls).replace(/"/g,'&quot;')},${i})"><img src="${f.url}" class="w-full h-32 object-contain rounded-lg"><span class="text-[10px] text-gray-300 truncate block">${f.nomi || 'Rasm'}</span></div>`; });
                     imgs += `</div>`;
                     html = `<div class="mt-1"><span class="text-xs text-indigo-600 font-bold"><i class="fa-regular fa-image mr-1"></i>Rasm:</span>${imgs}</div>`;
-                } else html = `<span class="text-xs text-red-500">Rasm yoâ€˜q</span>`;
+                } else html = `<span class="text-xs text-red-500">Rasm yo‘q</span>`;
             } else if (valObj.turi === 'video' && valObj.url) {
                 html = `<div class="mt-1"><span class="text-xs text-purple-600 font-bold"><i class="fa-regular fa-video mr-1"></i>Video:</span><div class="bg-black rounded-xl overflow-hidden p-1 mt-1"><video controls class="w-full max-h-64 object-contain"><source src="${valObj.url}"></video></div></div>`;
             } else if (valObj.turi === 'file' && valObj.url) {
@@ -2830,7 +2830,7 @@
                     const showKod5 = holatData ? holatData.kod5Korsatish !== false : true;
                     const eslatma = holatData ? holatData.eslatma : '';
 
-                    const kod5Html = showKod5 ? `<div class="text-center"><div class="text-[10px] uppercase font-bold text-amber-700">5 xonali kod</div><div class="text-xl font-extrabold text-amber-800 tracking-widest">${a.kod5 || 'â€”'}</div></div>` : '';
+                    const kod5Html = showKod5 ? `<div class="text-center"><div class="text-[10px] uppercase font-bold text-amber-700">5 xonali kod</div><div class="text-xl font-extrabold text-amber-800 tracking-widest">${a.kod5 || '—'}</div></div>` : '';
                     const shtrixHtml = showShtrix ? `<div class="flex-1 min-w-[150px]"><svg class="arcv" data-code="${a.shtrixKod || a.id}"></svg></div>` : '';
                     const eslatmaHtml = eslatma ? `<div class="bg-yellow-50 border border-yellow-200 p-2 rounded-xl text-xs text-yellow-800"><i class="fa-regular fa-note-sticky mr-1"></i>${eslatma}</div>` : '';
 
@@ -2861,7 +2861,7 @@
             const user = await getCurrentUser();
             const arizalar = await getArizalarCached(); const a = arizalar[arizaId]; if (!a) return;
             const isAdmin = user.role === 'admin';
-            if (a.tahrirlashMumkin === false && !isAdmin) { alert("Tahrirlash ruxsati yoâ€˜q!"); return; }
+            if (a.tahrirlashMumkin === false && !isAdmin) { alert("Tahrirlash ruxsati yo‘q!"); return; }
             const holatlar = await getHolatlarCached(true);
             let holatData = null;
             for (let hKey in holatlar) { if (holatlar[hKey].yozuv === a.holat) { holatData = holatlar[hKey]; break; } }
@@ -2886,7 +2886,7 @@
                         fields += `<select data-fid="${mId}" data-ftype="tanlov" data-req="${req}" class="edit-ariza-field w-full px-4 py-3.5 border-2 border-indigo-200 rounded-2xl bg-white" ${req ? 'required' : ''}><option value="">-- Tanlang --</option>${vars.map(v => `<option value="${v}" ${oldVal === v ? 'selected' : ''}>${v}</option>`).join('')}</select>`;
                     } else {
                         fields += `<div class="edit-ariza-field checkbox-group border-2 border-indigo-200 rounded-2xl p-3 space-y-2" data-fid="${mId}" data-ftype="tanlov" data-req="${req}" data-max="${tanlovSoni}">`;
-                        fields += `<div class="text-xs text-indigo-600 font-medium">Koâ€˜pi bilan ${tanlovSoni} ta tanlang</div>`;
+                        fields += `<div class="text-xs text-indigo-600 font-medium">Ko‘pi bilan ${tanlovSoni} ta tanlang</div>`;
                         vars.forEach((v) => { const checked = oldVariants.includes(v) ? 'checked' : ''; fields += `<label class="flex items-center gap-2 text-sm"><input type="checkbox" value="${v}" class="edit-checkbox accent-indigo-600" ${checked}> ${v}</label>`; });
                         fields += `</div>`;
                     }
@@ -2905,18 +2905,18 @@
                         <label class="text-[10px] font-bold uppercase text-amber-700">5 xonali kod ${showKod5 ? '' : '<span class="text-red-500">(yashirilgan)</span>'}</label>
                         <input type="text" id="editArizaKod5" value="${a.kod5 || ''}" class="w-full border-2 border-amber-300 px-3 py-2 rounded-xl font-bold tracking-widest bg-white">
                         <div class="flex gap-1 mt-1 flex-wrap">
-                            <button onclick="saveArizaKod5Manual('${arizaId}')" class="bg-emerald-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold">ðŸ’¾ Saqlash</button>
-                            <button onclick="regenerateKod5('ariza','${arizaId}')" class="bg-blue-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold">ðŸ”„ Qayta</button>
-                            <button onclick="deleteKod5('ariza','${arizaId}')" class="bg-red-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold">ðŸ—‘ O'chirish</button>
+                            <button onclick="saveArizaKod5Manual('${arizaId}')" class="bg-emerald-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold">💾 Saqlash</button>
+                            <button onclick="regenerateKod5('ariza','${arizaId}')" class="bg-blue-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold">🔄 Qayta</button>
+                            <button onclick="deleteKod5('ariza','${arizaId}')" class="bg-red-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold">🗑 O'chirish</button>
                         </div>
                     </div>
                     <div>
                         <label class="text-[10px] font-bold uppercase text-amber-700">Shtrix kod ${showShtrix ? '' : '<span class="text-red-500">(yashirilgan)</span>'}</label>
                         <input type="text" id="editArizaShtrix" value="${a.shtrixKod || ''}" class="w-full border-2 border-amber-300 px-3 py-2 rounded-xl text-xs bg-white">
                         <div class="flex gap-1 mt-1 flex-wrap">
-                            <button onclick="saveArizaShtrixManual('${arizaId}')" class="bg-emerald-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold">ðŸ’¾ Saqlash</button>
-                            <button onclick="regenerateShtrixKod('ariza','${arizaId}')" class="bg-blue-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold">ðŸ”„ Qayta</button>
-                            <button onclick="deleteShtrixKod('ariza','${arizaId}')" class="bg-red-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold">ðŸ—‘ O'chirish</button>
+                            <button onclick="saveArizaShtrixManual('${arizaId}')" class="bg-emerald-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold">💾 Saqlash</button>
+                            <button onclick="regenerateShtrixKod('ariza','${arizaId}')" class="bg-blue-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold">🔄 Qayta</button>
+                            <button onclick="deleteShtrixKod('ariza','${arizaId}')" class="bg-red-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold">🗑 O'chirish</button>
                         </div>
                     </div>
                     <div class="md:col-span-2 text-[10px] text-gray-500 italic"><i class="fa-solid fa-shield-halved mr-1"></i>Faqat admin shtrix va 5 xonali kodni o'zgartira oladi.</div>
@@ -2934,7 +2934,7 @@
             modal.innerHTML = `
                 <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto modal-overlay">
                     <div class="bg-white p-6 md:p-8 rounded-3xl shadow-2xl w-full max-w-lg space-y-4 max-h-[90vh] overflow-y-auto border border-indigo-100">
-                        <div class="flex justify-between items-center border-b pb-3"><h3 class="text-2xl font-bold text-gray-800">Arizani tahrirlash â„–${a.id}</h3><button onclick="closeModal()" class="text-gray-400 hover:text-gray-700 text-2xl font-bold px-2">&times;</button></div>
+                        <div class="flex justify-between items-center border-b pb-3"><h3 class="text-2xl font-bold text-gray-800">Arizani tahrirlash №${a.id}</h3><button onclick="closeModal()" class="text-gray-400 hover:text-gray-700 text-2xl font-bold px-2">&times;</button></div>
                         ${adminKodControls}
                         <div class="space-y-4">${fields}</div>
                         <div class="flex justify-end gap-3 pt-4 border-t"><button onclick="closeModal()" class="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-2xl font-bold text-sm">Bekor</button><button onclick="saveEditedAriza('${arizaId}')" class="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-bold text-sm shadow">Saqlash</button></div>
@@ -3014,8 +3014,8 @@
             for (let sId in sorovnomalar) { const s = sorovnomalar[sId]; if (s.userId === user.id) userCounts[s.turKey] = (userCounts[s.turKey] || 0) + 1; }
             container.innerHTML = `
                 <div class="bg-white/70 backdrop-blur-sm p-6 rounded-3xl shadow-sm border border-emerald-100 space-y-6">
-                    <div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-rectangle-list text-emerald-500 mr-3"></i>Soâ€˜rovnoma</h2></div>
-                    <div><label class="block text-sm font-semibold text-gray-700 mb-1">Soâ€˜rovnoma turi</label>
+                    <div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-rectangle-list text-emerald-500 mr-3"></i>So‘rovnoma</h2></div>
+                    <div><label class="block text-sm font-semibold text-gray-700 mb-1">So‘rovnoma turi</label>
                         <select id="selectSorovnomaTuri" class="w-full px-4 py-3.5 border-2 border-emerald-200 rounded-2xl focus:ring-4 focus:ring-emerald-300 bg-white/80">
                             <option value="">-- Tanlang --</option>
                             ${Object.keys(turlar).map(key => { const t = turlar[key]; const limit = parseInt(t.maxLimit) || 0; const count = userCounts[key] || 0; const disabled = limit > 0 && count >= limit; return `<option value="${key}" ${disabled ? 'disabled' : ''}>${t.nomi} ${limit > 0 ? `(${count}/${limit})` : ''} ${disabled ? '(limit)' : ''}</option>`; }).join('')}
@@ -3101,7 +3101,7 @@
             const sorovnomalar = await getSorovnomalar(true); const turlar = await getSorovnomaTurlari(true);
             container.innerHTML = `
                 <div class="bg-white/70 backdrop-blur-sm p-6 rounded-3xl shadow-sm border border-emerald-100 space-y-4">
-                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3"><div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-copy text-emerald-500 mr-3"></i>Soâ€˜rovnomalarim</h2><p class="text-sm text-gray-500">ID: ${user.id}</p></div></div>
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3"><div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-copy text-emerald-500 mr-3"></i>So‘rovnomalarim</h2><p class="text-sm text-gray-500">ID: ${user.id}</p></div></div>
                     <div id="userSorovlarListContainer" class="space-y-4"></div>
                 </div>
             `;
@@ -3111,12 +3111,12 @@
                 for (let id in sorovnomalar) {
                     const s = sorovnomalar[id]; if (s.userId !== user.id || !s.korinsin) continue;
                     found = true;
-                    const turName = turlar[s.turKey] ? turlar[s.turKey].nomi : "Soâ€˜rovnoma";
+                    const turName = turlar[s.turKey] ? turlar[s.turKey].nomi : "So‘rovnoma";
                     let qiymatlarHtml = ''; if (s.qiymatlar) for (let mk in s.qiymatlar) qiymatlarHtml += renderFieldItem(mk, s.qiymatlar[mk]);
                     let javobHtml = s.javob ? `<div class="bg-emerald-50/60 border border-emerald-200 p-4 rounded-2xl"><p class="text-sm text-emerald-900 whitespace-pre-wrap">${s.javob}</p></div>` : '';
                     html += `<div class="border p-5 rounded-3xl bg-white shadow-sm space-y-3"><div class="flex justify-between items-center border-b pb-3"><div><span class="text-xs font-bold text-gray-400">ID:</span><span class="font-bold text-emerald-600 text-lg ml-2">${s.id}</span></div><span class="px-3 py-0.5 rounded-full text-xs font-bold" style="${s.holatRangi || ''}">${s.holat}</span></div><div><p class="text-sm font-semibold">Turi: <span class="text-emerald-600">${turName}</span></p></div><div class="grid grid-cols-1 gap-3">${qiymatlarHtml}</div>${javobHtml}</div>`;
                 }
-                if (!found) html += `<div class="text-center py-10 text-gray-400">Soâ€˜rovnomalar mavjud emas</div>`;
+                if (!found) html += `<div class="text-center py-10 text-gray-400">So‘rovnomalar mavjud emas</div>`;
                 list.innerHTML = html;
             }
             draw();
@@ -3133,7 +3133,7 @@
                 if (y.videoUrl) media += `<div class="mt-2"><video controls class="w-full max-h-72 object-contain rounded-2xl border bg-black"><source src="${y.videoUrl}"></video></div>`;
                 html += `<div class="border p-5 rounded-3xl bg-white shadow-sm space-y-3"><h3 class="font-bold text-xl text-gray-900">${y.sarlavha}</h3><p class="text-gray-700 text-sm whitespace-pre-wrap">${y.matn}</p>${media}<div class="flex justify-between text-xs text-gray-400 pt-3 border-t"><span>Sana: <b>${y.sana || ''}</b></span><span>Vaqt: <b>${y.vaqt || ''}</b></span></div></div>`;
             }
-            if (!found) html += `<div class="text-center py-10 text-gray-400">Yangiliklar yoâ€˜q</div>`;
+            if (!found) html += `<div class="text-center py-10 text-gray-400">Yangiliklar yo‘q</div>`;
             html += `</div></div>`;
             container.innerHTML = html;
         }
@@ -3186,11 +3186,11 @@
                 const t = turlar[tKey]; const maydonlarEntries = sortMaydonlar(t.maydonlar);
                 let mHtml = '';
                 for (let [mId, m] of maydonlarEntries) {
-                    mHtml += `<div class="bg-white p-3 rounded-2xl border flex justify-between items-center text-xs"><div><span class="font-bold">${m.nomi}</span><span class="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full ml-2">${m.turi}</span>${m.majburiy === false ? '<span class="text-gray-400 ml-2">(ixtiyoriy)</span>' : '<span class="text-red-500 ml-2">*</span>'}</div><div class="flex gap-1"><button onclick="moveMaydonUp('${tKey}','${mId}')" class="text-gray-600 bg-gray-100 px-2 py-1 rounded-2xl font-bold text-xs">â¬†ï¸</button><button onclick="moveMaydonDown('${tKey}','${mId}')" class="text-gray-600 bg-gray-100 px-2 py-1 rounded-2xl font-bold text-xs">â¬‡ï¸</button><button onclick="openEditMaydonModal('${tKey}','${mId}')" class="text-blue-600 bg-blue-50 px-3 py-1 rounded-2xl font-bold text-xs"><i class="fa-regular fa-pen"></i></button><button onclick="deleteMaydon('${tKey}','${mId}')" class="text-red-500 bg-red-50 px-3 py-1 rounded-2xl font-bold text-xs"><i class="fa-regular fa-trash"></i></button></div></div>`;
+                    mHtml += `<div class="bg-white p-3 rounded-2xl border flex justify-between items-center text-xs"><div><span class="font-bold">${m.nomi}</span><span class="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full ml-2">${m.turi}</span>${m.majburiy === false ? '<span class="text-gray-400 ml-2">(ixtiyoriy)</span>' : '<span class="text-red-500 ml-2">*</span>'}</div><div class="flex gap-1"><button onclick="moveMaydonUp('${tKey}','${mId}')" class="text-gray-600 bg-gray-100 px-2 py-1 rounded-2xl font-bold text-xs">⬆️</button><button onclick="moveMaydonDown('${tKey}','${mId}')" class="text-gray-600 bg-gray-100 px-2 py-1 rounded-2xl font-bold text-xs">⬇️</button><button onclick="openEditMaydonModal('${tKey}','${mId}')" class="text-blue-600 bg-blue-50 px-3 py-1 rounded-2xl font-bold text-xs"><i class="fa-regular fa-pen"></i></button><button onclick="deleteMaydon('${tKey}','${mId}')" class="text-red-500 bg-red-50 px-3 py-1 rounded-2xl font-bold text-xs"><i class="fa-regular fa-trash"></i></button></div></div>`;
                 }
-                html += `<div class="border p-5 rounded-3xl bg-gray-50/60 space-y-4"><div class="flex justify-between items-center border-b pb-3"><div><h3 class="font-bold text-lg text-indigo-700">${t.nomi}</h3><p class="text-xs text-gray-500">Limit: <b>${t.maxLimit && t.maxLimit !== '0' ? t.maxLimit + ' ta' : 'Cheksiz'}</b></p></div><div class="flex gap-2"><button onclick="openEditArizaTurModal('${tKey}','${t.nomi}','${t.maxLimit || 0}')" class="bg-blue-50 text-blue-600 px-4 py-1.5 rounded-2xl text-xs font-bold border border-blue-200">Tahrirlash</button><button onclick="deleteArizaTur('${tKey}')" class="bg-red-50 text-red-600 px-4 py-1.5 rounded-2xl text-xs font-bold border border-red-200">O'chirish</button></div></div><div class="space-y-2"><h5 class="text-xs font-bold text-gray-700 uppercase">Maydonlar:</h5>${mHtml || '<p class="text-xs text-gray-400">Yoâ€˜q</p>'}</div><div class="bg-white p-4 rounded-3xl border space-y-3"><h5 class="text-xs font-bold text-gray-700 uppercase">Yangi maydon</h5><div class="grid grid-cols-1 md:grid-cols-4 gap-2"><input type="text" id="maydonNomi_${tKey}" placeholder="Nomi" class="border-2 border-indigo-200 px-3 py-2.5 rounded-2xl text-xs bg-white"><select id="maydonTuri_${tKey}" class="border-2 border-indigo-200 px-3 py-2.5 rounded-2xl text-xs bg-white"><option value="matn">Matn</option><option value="nomer">Raqam</option><option value="sana">Sana</option><option value="vaqt">Vaqt</option><option value="tanlov">Tanlov</option><option value="rasm_tushish">Kamera</option><option value="galereyadan">Galereya</option><option value="rasm">Rasm</option><option value="video">Video</option><option value="file">Fayl</option></select><input type="text" id="maydonVariant_${tKey}" placeholder="Variantlar" class="border-2 border-indigo-200 px-3 py-2.5 rounded-2xl text-xs bg-white"><input type="number" id="maydonTanlovSoni_${tKey}" placeholder="Tanlov soni" value="1" min="1" class="border-2 border-indigo-200 px-3 py-2.5 rounded-2xl text-xs bg-white"></div><div class="flex justify-between items-center"><label class="flex items-center gap-2 text-xs font-medium"><input type="checkbox" id="maydonMajburiy_${tKey}" checked> Majburiy</label><button onclick="addMaydonToTur('${tKey}')" class="bg-slate-800 text-white px-5 py-2 rounded-2xl text-xs font-bold">Qo'shish</button></div></div></div>`;
+                html += `<div class="border p-5 rounded-3xl bg-gray-50/60 space-y-4"><div class="flex justify-between items-center border-b pb-3"><div><h3 class="font-bold text-lg text-indigo-700">${t.nomi}</h3><p class="text-xs text-gray-500">Limit: <b>${t.maxLimit && t.maxLimit !== '0' ? t.maxLimit + ' ta' : 'Cheksiz'}</b></p></div><div class="flex gap-2"><button onclick="openEditArizaTurModal('${tKey}','${t.nomi}','${t.maxLimit || 0}')" class="bg-blue-50 text-blue-600 px-4 py-1.5 rounded-2xl text-xs font-bold border border-blue-200">Tahrirlash</button><button onclick="deleteArizaTur('${tKey}')" class="bg-red-50 text-red-600 px-4 py-1.5 rounded-2xl text-xs font-bold border border-red-200">O'chirish</button></div></div><div class="space-y-2"><h5 class="text-xs font-bold text-gray-700 uppercase">Maydonlar:</h5>${mHtml || '<p class="text-xs text-gray-400">Yo‘q</p>'}</div><div class="bg-white p-4 rounded-3xl border space-y-3"><h5 class="text-xs font-bold text-gray-700 uppercase">Yangi maydon</h5><div class="grid grid-cols-1 md:grid-cols-4 gap-2"><input type="text" id="maydonNomi_${tKey}" placeholder="Nomi" class="border-2 border-indigo-200 px-3 py-2.5 rounded-2xl text-xs bg-white"><select id="maydonTuri_${tKey}" class="border-2 border-indigo-200 px-3 py-2.5 rounded-2xl text-xs bg-white"><option value="matn">Matn</option><option value="nomer">Raqam</option><option value="sana">Sana</option><option value="vaqt">Vaqt</option><option value="tanlov">Tanlov</option><option value="rasm_tushish">Kamera</option><option value="galereyadan">Galereya</option><option value="rasm">Rasm</option><option value="video">Video</option><option value="file">Fayl</option></select><input type="text" id="maydonVariant_${tKey}" placeholder="Variantlar" class="border-2 border-indigo-200 px-3 py-2.5 rounded-2xl text-xs bg-white"><input type="number" id="maydonTanlovSoni_${tKey}" placeholder="Tanlov soni" value="1" min="1" class="border-2 border-indigo-200 px-3 py-2.5 rounded-2xl text-xs bg-white"></div><div class="flex justify-between items-center"><label class="flex items-center gap-2 text-xs font-medium"><input type="checkbox" id="maydonMajburiy_${tKey}" checked> Majburiy</label><button onclick="addMaydonToTur('${tKey}')" class="bg-slate-800 text-white px-5 py-2 rounded-2xl text-xs font-bold">Qo'shish</button></div></div></div>`;
             }
-            container.innerHTML = html || '<p class="text-gray-400">Turlar yoâ€˜q</p>';
+            container.innerHTML = html || '<p class="text-gray-400">Turlar yo‘q</p>';
         }
         window.openEditArizaTurModal = async function(tKey, eskiN, eskiL) {
             const n = prompt("Nomi:", eskiN); if (!n) return; const l = prompt("Limit:", eskiL);
@@ -3253,7 +3253,7 @@
             const turlar = await getSorovnomaTurlari(true);
             let html = `
                 <div class="bg-white/70 backdrop-blur-sm p-6 rounded-3xl shadow-sm border border-emerald-100 space-y-6">
-                    <div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-list-check text-emerald-500 mr-3"></i>Soâ€˜rovnoma turlari</h2></div>
+                    <div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-list-check text-emerald-500 mr-3"></i>So‘rovnoma turlari</h2></div>
                     <div class="bg-gray-50/80 p-4 rounded-3xl border-2 border-dashed border-emerald-200 space-y-3"><h4 class="text-xs font-bold text-gray-700 uppercase">Yangi tur</h4><div class="grid grid-cols-1 md:grid-cols-2 gap-3"><input type="text" id="yangiSorovTuriNomi" placeholder="Nomi" class="border-2 border-emerald-200 px-4 py-3 rounded-2xl bg-white"><input type="number" id="yangiSorovTuriLimit" placeholder="Limit" class="border-2 border-emerald-200 px-4 py-3 rounded-2xl bg-white"></div><button id="addNewSorovTurBtn" class="bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-6 py-2.5 rounded-2xl font-bold text-xs shadow">Qo'shish</button></div>
                     <div id="adminSorovTurlarListContainer" class="space-y-4"></div>
                 </div>
@@ -3275,11 +3275,11 @@
                 const t = turlar[tKey]; const maydonlarEntries = sortMaydonlar(t.maydonlar);
                 let mHtml = '';
                 for (let [mId, m] of maydonlarEntries) {
-                    mHtml += `<div class="bg-white p-3 rounded-2xl border flex justify-between items-center text-xs"><div><span class="font-bold">${m.nomi}</span><span class="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full ml-2">${m.turi}</span>${m.majburiy === false ? '<span class="text-gray-400 ml-2">(ixtiyoriy)</span>' : '<span class="text-red-500 ml-2">*</span>'}</div><div class="flex gap-1"><button onclick="moveSorovMaydonUp('${tKey}','${mId}')" class="text-gray-600 bg-gray-100 px-2 py-1 rounded-2xl font-bold text-xs">â¬†ï¸</button><button onclick="moveSorovMaydonDown('${tKey}','${mId}')" class="text-gray-600 bg-gray-100 px-2 py-1 rounded-2xl font-bold text-xs">â¬‡ï¸</button><button onclick="openEditSorovMaydonModal('${tKey}','${mId}')" class="text-blue-600 bg-blue-50 px-3 py-1 rounded-2xl font-bold text-xs"><i class="fa-regular fa-pen"></i></button><button onclick="deleteSorovMaydon('${tKey}','${mId}')" class="text-red-500 bg-red-50 px-3 py-1 rounded-2xl font-bold text-xs"><i class="fa-regular fa-trash"></i></button></div></div>`;
+                    mHtml += `<div class="bg-white p-3 rounded-2xl border flex justify-between items-center text-xs"><div><span class="font-bold">${m.nomi}</span><span class="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full ml-2">${m.turi}</span>${m.majburiy === false ? '<span class="text-gray-400 ml-2">(ixtiyoriy)</span>' : '<span class="text-red-500 ml-2">*</span>'}</div><div class="flex gap-1"><button onclick="moveSorovMaydonUp('${tKey}','${mId}')" class="text-gray-600 bg-gray-100 px-2 py-1 rounded-2xl font-bold text-xs">⬆️</button><button onclick="moveSorovMaydonDown('${tKey}','${mId}')" class="text-gray-600 bg-gray-100 px-2 py-1 rounded-2xl font-bold text-xs">⬇️</button><button onclick="openEditSorovMaydonModal('${tKey}','${mId}')" class="text-blue-600 bg-blue-50 px-3 py-1 rounded-2xl font-bold text-xs"><i class="fa-regular fa-pen"></i></button><button onclick="deleteSorovMaydon('${tKey}','${mId}')" class="text-red-500 bg-red-50 px-3 py-1 rounded-2xl font-bold text-xs"><i class="fa-regular fa-trash"></i></button></div></div>`;
                 }
-                html += `<div class="border p-5 rounded-3xl bg-gray-50/60 space-y-4"><div class="flex justify-between items-center border-b pb-3"><div><h3 class="font-bold text-lg text-emerald-700">${t.nomi}</h3></div><div class="flex gap-2"><button onclick="openEditSorovTurModal('${tKey}','${t.nomi}','${t.maxLimit || 0}')" class="bg-blue-50 text-blue-600 px-4 py-1.5 rounded-2xl text-xs font-bold border border-blue-200">Tahrirlash</button><button onclick="deleteSorovTur('${tKey}')" class="bg-red-50 text-red-600 px-4 py-1.5 rounded-2xl text-xs font-bold border border-red-200">O'chirish</button></div></div><div class="space-y-2">${mHtml || '<p class="text-xs text-gray-400">Yoâ€˜q</p>'}</div><div class="bg-white p-4 rounded-3xl border space-y-3"><h5 class="text-xs font-bold text-gray-700 uppercase">Yangi maydon</h5><div class="grid grid-cols-1 md:grid-cols-4 gap-2"><input type="text" id="sorovMaydonNomi_${tKey}" placeholder="Nomi" class="border-2 border-emerald-200 px-3 py-2.5 rounded-2xl text-xs bg-white"><select id="sorovMaydonTuri_${tKey}" class="border-2 border-emerald-200 px-3 py-2.5 rounded-2xl text-xs bg-white"><option value="matn">Matn</option><option value="nomer">Raqam</option><option value="sana">Sana</option><option value="vaqt">Vaqt</option><option value="tanlov">Tanlov</option><option value="rasm_tushish">Kamera</option><option value="galereyadan">Galereya</option><option value="rasm">Rasm</option><option value="video">Video</option><option value="file">Fayl</option></select><input type="text" id="sorovMaydonVariant_${tKey}" placeholder="Variantlar" class="border-2 border-emerald-200 px-3 py-2.5 rounded-2xl text-xs bg-white"><input type="number" id="sorovMaydonTanlovSoni_${tKey}" value="1" min="1" class="border-2 border-emerald-200 px-3 py-2.5 rounded-2xl text-xs bg-white"></div><div class="flex justify-between items-center"><label class="flex items-center gap-2 text-xs"><input type="checkbox" id="sorovMaydonMajburiy_${tKey}" checked> Majburiy</label><button onclick="addSorovMaydonToTur('${tKey}')" class="bg-slate-800 text-white px-5 py-2 rounded-2xl text-xs font-bold">Qo'shish</button></div></div></div>`;
+                html += `<div class="border p-5 rounded-3xl bg-gray-50/60 space-y-4"><div class="flex justify-between items-center border-b pb-3"><div><h3 class="font-bold text-lg text-emerald-700">${t.nomi}</h3></div><div class="flex gap-2"><button onclick="openEditSorovTurModal('${tKey}','${t.nomi}','${t.maxLimit || 0}')" class="bg-blue-50 text-blue-600 px-4 py-1.5 rounded-2xl text-xs font-bold border border-blue-200">Tahrirlash</button><button onclick="deleteSorovTur('${tKey}')" class="bg-red-50 text-red-600 px-4 py-1.5 rounded-2xl text-xs font-bold border border-red-200">O'chirish</button></div></div><div class="space-y-2">${mHtml || '<p class="text-xs text-gray-400">Yo‘q</p>'}</div><div class="bg-white p-4 rounded-3xl border space-y-3"><h5 class="text-xs font-bold text-gray-700 uppercase">Yangi maydon</h5><div class="grid grid-cols-1 md:grid-cols-4 gap-2"><input type="text" id="sorovMaydonNomi_${tKey}" placeholder="Nomi" class="border-2 border-emerald-200 px-3 py-2.5 rounded-2xl text-xs bg-white"><select id="sorovMaydonTuri_${tKey}" class="border-2 border-emerald-200 px-3 py-2.5 rounded-2xl text-xs bg-white"><option value="matn">Matn</option><option value="nomer">Raqam</option><option value="sana">Sana</option><option value="vaqt">Vaqt</option><option value="tanlov">Tanlov</option><option value="rasm_tushish">Kamera</option><option value="galereyadan">Galereya</option><option value="rasm">Rasm</option><option value="video">Video</option><option value="file">Fayl</option></select><input type="text" id="sorovMaydonVariant_${tKey}" placeholder="Variantlar" class="border-2 border-emerald-200 px-3 py-2.5 rounded-2xl text-xs bg-white"><input type="number" id="sorovMaydonTanlovSoni_${tKey}" value="1" min="1" class="border-2 border-emerald-200 px-3 py-2.5 rounded-2xl text-xs bg-white"></div><div class="flex justify-between items-center"><label class="flex items-center gap-2 text-xs"><input type="checkbox" id="sorovMaydonMajburiy_${tKey}" checked> Majburiy</label><button onclick="addSorovMaydonToTur('${tKey}')" class="bg-slate-800 text-white px-5 py-2 rounded-2xl text-xs font-bold">Qo'shish</button></div></div></div>`;
             }
-            container.innerHTML = html || '<p class="text-gray-400">Turlar yoâ€˜q</p>';
+            container.innerHTML = html || '<p class="text-gray-400">Turlar yo‘q</p>';
         }
         window.openEditSorovTurModal = async function(tKey, eskiN, eskiL) {
             const n = prompt("Nomi:", eskiN); if (!n) return; const l = prompt("Limit:", eskiL);
@@ -3357,11 +3357,11 @@
                     <div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-chart-pie text-purple-500 mr-3"></i>Statistika</h2></div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div class="bg-indigo-600 text-white p-6 rounded-3xl shadow space-y-1"><span class="text-xs uppercase font-bold">Jami arizalar</span><h3 class="text-3xl font-extrabold">${totalA}</h3></div>
-                        <div class="bg-emerald-600 text-white p-6 rounded-3xl shadow space-y-1"><span class="text-xs uppercase font-bold">Jami soâ€˜rovnomalar</span><h3 class="text-3xl font-extrabold">${totalS}</h3></div>
+                        <div class="bg-emerald-600 text-white p-6 rounded-3xl shadow space-y-1"><span class="text-xs uppercase font-bold">Jami so‘rovnomalar</span><h3 class="text-3xl font-extrabold">${totalS}</h3></div>
                         <div class="bg-purple-600 text-white p-6 rounded-3xl shadow space-y-1"><span class="text-xs uppercase font-bold">Jami buyurtmalar</span><h3 class="text-3xl font-extrabold">${totalB}</h3></div>
                         <div class="bg-pink-600 text-white p-6 rounded-3xl shadow space-y-1"><span class="text-xs uppercase font-bold">Umumiy summa</span><h3 class="text-xl font-extrabold">${totalSum.toLocaleString()} so'm</h3></div>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div class="space-y-2"><h3 class="font-bold">Ariza turlari</h3>${turHtml || '<p class="text-xs text-gray-400">Yoâ€˜q</p>'}</div><div class="space-y-2"><h3 class="font-bold">Soâ€˜rovnoma turlari</h3>${sTurHtml || '<p class="text-xs text-gray-400">Yoâ€˜q</p>'}</div><div class="space-y-2"><h3 class="font-bold">Ariza holatlari</h3>${holatHtml || '<p class="text-xs text-gray-400">Yoâ€˜q</p>'}</div></div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div class="space-y-2"><h3 class="font-bold">Ariza turlari</h3>${turHtml || '<p class="text-xs text-gray-400">Yo‘q</p>'}</div><div class="space-y-2"><h3 class="font-bold">So‘rovnoma turlari</h3>${sTurHtml || '<p class="text-xs text-gray-400">Yo‘q</p>'}</div><div class="space-y-2"><h3 class="font-bold">Ariza holatlari</h3>${holatHtml || '<p class="text-xs text-gray-400">Yo‘q</p>'}</div></div>
                 </div>
             `;
         }
@@ -3376,14 +3376,14 @@
                     <div class="flex items-center gap-3 flex-wrap">
                         <span class="px-3 py-1 rounded-full font-bold text-xs" style="${h.rang}">${h.yozuv}</span>
                         <div class="text-xs text-gray-500 flex flex-wrap gap-2">
-                            <span>Shtrix: <b>${h.shtrixKorsatish !== false ? 'âœ…' : 'âŒ'}</b></span>
-                            <span>Kod5: <b>${h.kod5Korsatish !== false ? 'âœ…' : 'âŒ'}</b></span>
-                            <span>Rasm: <b>${h.rasmKorsatish !== false ? 'âœ…' : 'âŒ'}</b></span>
-                            <span>Market: <b>${h.marketdanQoshish !== false ? 'âœ…' : 'âŒ'}</b></span>
-                            <span>Tahrir: <b>${h.tahrirlashRuxsati !== false ? 'âœ…' : 'âŒ'}</b></span>
-                            <span>O'chirish: <b>${h.ochirishRuxsati !== false ? 'âœ…' : 'âŒ'}</b></span>
-                            <span>Mahsulot tahrir: <b>${h.mahsulotTahrirlash === true ? 'âœ…' : 'âŒ'}</b></span>
-                            <span>Eslatma: <b>${h.eslatma || 'â€”'}</b></span>
+                            <span>Shtrix: <b>${h.shtrixKorsatish !== false ? '✅' : '❌'}</b></span>
+                            <span>Kod5: <b>${h.kod5Korsatish !== false ? '✅' : '❌'}</b></span>
+                            <span>Rasm: <b>${h.rasmKorsatish !== false ? '✅' : '❌'}</b></span>
+                            <span>Market: <b>${h.marketdanQoshish !== false ? '✅' : '❌'}</b></span>
+                            <span>Tahrir: <b>${h.tahrirlashRuxsati !== false ? '✅' : '❌'}</b></span>
+                            <span>O'chirish: <b>${h.ochirishRuxsati !== false ? '✅' : '❌'}</b></span>
+                            <span>Mahsulot tahrir: <b>${h.mahsulotTahrirlash === true ? '✅' : '❌'}</b></span>
+                            <span>Eslatma: <b>${h.eslatma || '—'}</b></span>
                         </div>
                     </div>
                     <div class="flex gap-2">
@@ -3413,7 +3413,7 @@
                         </div>
                         <button id="addNewHolatBtn" class="bg-indigo-600 text-white px-6 py-2.5 rounded-2xl font-bold text-xs shadow">Qo'shish</button>
                     </div>
-                    <div class="space-y-2">${listHtml || '<p class="text-gray-400">Holatlar yoâ€˜q</p>'}</div>
+                    <div class="space-y-2">${listHtml || '<p class="text-gray-400">Holatlar yo‘q</p>'}</div>
                 </div>
             `;
             document.getElementById('addNewHolatBtn').addEventListener('click', async () => {
@@ -3527,7 +3527,7 @@
             modal.innerHTML = `
                 <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 modal-overlay">
                     <div class="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-md space-y-4 border border-indigo-100">
-                        <h3 class="text-xl font-bold">Parolni oâ€˜zgartirish</h3>
+                        <h3 class="text-xl font-bold">Parolni o‘zgartirish</h3>
                         <input type="text" id="newPinInput" placeholder="Yangi parol" class="w-full border-2 border-indigo-200 px-4 py-3 rounded-2xl">
                         <div class="flex justify-end gap-2 pt-3 border-t"><button onclick="closeModal()" class="px-5 py-2.5 bg-gray-100 rounded-2xl font-bold text-sm">Bekor</button><button onclick="changeUserPin('${userId}')" class="px-6 py-2.5 bg-indigo-600 text-white rounded-2xl font-bold text-sm shadow">Saqlash</button></div>
                     </div>
@@ -3563,7 +3563,7 @@
             for (let uId in users) { const u = users[uId];
                 html += `<div class="border p-4 rounded-2xl flex flex-wrap items-center justify-between gap-2 bg-gray-50 text-sm"><div><h5 class="font-bold">ID: ${u.id} <i class="fa-regular fa-lock text-xs text-gray-400"></i> <span class="text-xs uppercase px-2 py-0.5 rounded-full ${u.role === 'admin' ? 'bg-purple-200 text-purple-800' : 'bg-blue-200 text-blue-800'}">${u.role}</span></h5></div><div class="flex flex-wrap gap-1"><button onclick="openChangeRoleModal('${u.id}','${u.role}')" class="bg-purple-600 text-white px-3 py-1 rounded-2xl text-xs font-bold">Rol</button><button onclick="openChangePinModal('${u.id}')" class="bg-amber-600 text-white px-3 py-1 rounded-2xl text-xs font-bold">Parol</button><button onclick="toggleBlockUser('${u.id}', ${!u.blocked})" class="px-3 py-1 rounded-2xl text-xs font-bold text-white ${u.blocked ? 'bg-emerald-600' : 'bg-red-600'}">${u.blocked ? 'Ochish' : 'Bloklash'}</button></div></div>`;
             }
-            container.innerHTML = html || '<p class="text-gray-400">Yoâ€˜q</p>';
+            container.innerHTML = html || '<p class="text-gray-400">Yo‘q</p>';
         }
         window.toggleBlockUser = async function(id, status) { await update(ref(db, `users/${id}`), { blocked: status }); alert(`ID ${id} ${status ? 'bloklandi' : 'blokdan chiqarildi'}`); renderAdminUsers(document.getElementById('tabContent')); };
 
@@ -3576,7 +3576,7 @@
                 const u = users[uId]; if (u.role === 'admin') continue;
                 const p = allPerms[uId] || {};
                 const chk = (key) => p[key] !== false;
-                html += `<div class="border p-4 rounded-2xl bg-gray-50 space-y-3"><div class="font-bold text-gray-900">ID: ${u.id} (${u.role})</div><div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs"><label class="flex items-center gap-2 bg-white p-2 rounded-2xl border cursor-pointer"><input type="checkbox" onchange="updateUserPerm('${uId}','ariza',this.checked)" ${chk('ariza') ? 'checked' : ''}> Ariza</label><label class="flex items-center gap-2 bg-white p-2 rounded-2xl border cursor-pointer"><input type="checkbox" onchange="updateUserPerm('${uId}','arizalarim',this.checked)" ${chk('arizalarim') ? 'checked' : ''}> Arizalarim</label><label class="flex items-center gap-2 bg-white p-2 rounded-2xl border cursor-pointer"><input type="checkbox" onchange="updateUserPerm('${uId}','sorovnoma',this.checked)" ${chk('sorovnoma') ? 'checked' : ''}> Soâ€˜rovnoma</label><label class="flex items-center gap-2 bg-white p-2 rounded-2xl border cursor-pointer"><input type="checkbox" onchange="updateUserPerm('${uId}','sorovnomalarim',this.checked)" ${chk('sorovnomalarim') ? 'checked' : ''}> Soâ€˜rovnomalarim</label><label class="flex items-center gap-2 bg-white p-2 rounded-2xl border cursor-pointer"><input type="checkbox" onchange="updateUserPerm('${uId}','uzum',this.checked)" ${chk('uzum') ? 'checked' : ''}> Uzum Market</label><label class="flex items-center gap-2 bg-white p-2 rounded-2xl border cursor-pointer"><input type="checkbox" onchange="updateUserPerm('${uId}','buyurtmalarim',this.checked)" ${chk('buyurtmalarim') ? 'checked' : ''}> Buyurtmalarim</label><label class="flex items-center gap-2 bg-white p-2 rounded-2xl border cursor-pointer"><input type="checkbox" onchange="updateUserPerm('${uId}','yangiliklar',this.checked)" ${chk('yangiliklar') ? 'checked' : ''}> Yangiliklar</label><label class="flex items-center gap-2 bg-white p-2 rounded-2xl border cursor-pointer"><input type="checkbox" onchange="updateUserPerm('${uId}','xabarlar',this.checked)" ${chk('xabarlar') ? 'checked' : ''}> Xabarlar</label><label class="flex items-center gap-2 bg-white p-2 rounded-2xl border cursor-pointer"><input type="checkbox" onchange="updateUserPerm('${uId}','profillarim',this.checked)" ${chk('profillarim') ? 'checked' : ''}> Profillarim</label></div></div>`;
+                html += `<div class="border p-4 rounded-2xl bg-gray-50 space-y-3"><div class="font-bold text-gray-900">ID: ${u.id} (${u.role})</div><div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs"><label class="flex items-center gap-2 bg-white p-2 rounded-2xl border cursor-pointer"><input type="checkbox" onchange="updateUserPerm('${uId}','ariza',this.checked)" ${chk('ariza') ? 'checked' : ''}> Ariza</label><label class="flex items-center gap-2 bg-white p-2 rounded-2xl border cursor-pointer"><input type="checkbox" onchange="updateUserPerm('${uId}','arizalarim',this.checked)" ${chk('arizalarim') ? 'checked' : ''}> Arizalarim</label><label class="flex items-center gap-2 bg-white p-2 rounded-2xl border cursor-pointer"><input type="checkbox" onchange="updateUserPerm('${uId}','sorovnoma',this.checked)" ${chk('sorovnoma') ? 'checked' : ''}> So‘rovnoma</label><label class="flex items-center gap-2 bg-white p-2 rounded-2xl border cursor-pointer"><input type="checkbox" onchange="updateUserPerm('${uId}','sorovnomalarim',this.checked)" ${chk('sorovnomalarim') ? 'checked' : ''}> So‘rovnomalarim</label><label class="flex items-center gap-2 bg-white p-2 rounded-2xl border cursor-pointer"><input type="checkbox" onchange="updateUserPerm('${uId}','uzum',this.checked)" ${chk('uzum') ? 'checked' : ''}> Uzum Market</label><label class="flex items-center gap-2 bg-white p-2 rounded-2xl border cursor-pointer"><input type="checkbox" onchange="updateUserPerm('${uId}','buyurtmalarim',this.checked)" ${chk('buyurtmalarim') ? 'checked' : ''}> Buyurtmalarim</label><label class="flex items-center gap-2 bg-white p-2 rounded-2xl border cursor-pointer"><input type="checkbox" onchange="updateUserPerm('${uId}','yangiliklar',this.checked)" ${chk('yangiliklar') ? 'checked' : ''}> Yangiliklar</label><label class="flex items-center gap-2 bg-white p-2 rounded-2xl border cursor-pointer"><input type="checkbox" onchange="updateUserPerm('${uId}','xabarlar',this.checked)" ${chk('xabarlar') ? 'checked' : ''}> Xabarlar</label><label class="flex items-center gap-2 bg-white p-2 rounded-2xl border cursor-pointer"><input type="checkbox" onchange="updateUserPerm('${uId}','profillarim',this.checked)" ${chk('profillarim') ? 'checked' : ''}> Profillarim</label></div></div>`;
             }
             html += `</div></div>`;
             container.innerHTML = html;
@@ -3592,9 +3592,9 @@
             const adminTugmalar = [
                 { key: 'admin_panel', nomi: 'Admin panel tugmasi', icon: 'fa-shield-halved' },
                 { key: 'admin_arizalar', nomi: 'Arizalar boshqaruvi', icon: 'fa-file-lines' },
-                { key: 'admin_sorovnomalar', nomi: 'Soâ€˜rovnomalar boshqaruvi', icon: 'fa-rectangle-list' },
+                { key: 'admin_sorovnomalar', nomi: 'So‘rovnomalar boshqaruvi', icon: 'fa-rectangle-list' },
                 { key: 'admin_turlar', nomi: 'Ariza turlari', icon: 'fa-gear' },
-                { key: 'admin_sorovnoma_turlar', nomi: 'Soâ€˜rovnoma turlari', icon: 'fa-list-check' },
+                { key: 'admin_sorovnoma_turlar', nomi: 'So‘rovnoma turlari', icon: 'fa-list-check' },
                 { key: 'admin_statistika', nomi: 'Statistika', icon: 'fa-chart-pie' },
                 { key: 'admin_holatlar', nomi: 'Holatlar', icon: 'fa-palette' },
                 { key: 'admin_users', nomi: 'Foydalanuvchilar', icon: 'fa-users-gear' },
@@ -3603,7 +3603,7 @@
                 { key: 'admin_buyurtmalar', nomi: 'Buyurtmalar', icon: 'fa-truck-fast' },
                 { key: 'admin_buyurtma_maydonlar', nomi: 'Buyurtma maydonlari', icon: 'fa-rectangle-list' },
                 { key: 'admin_scan', nomi: 'Skaner / Kod qidiruv', icon: 'fa-barcode' },
-                { key: 'admin_bolimlar', nomi: 'Boâ€˜limlar koâ€˜rinishi', icon: 'fa-palette' },
+                { key: 'admin_bolimlar', nomi: 'Bo‘limlar ko‘rinishi', icon: 'fa-palette' },
                 { key: 'admin_yangilik', nomi: 'Yangiliklar', icon: 'fa-bullhorn' },
                 { key: 'admin_xabarlar', nomi: 'Xabarlar', icon: 'fa-comments' },
                 { key: 'admin_texnik', nomi: 'Texnik ishlar', icon: 'fa-wrench' },
@@ -3632,7 +3632,7 @@
                     const disabledAttr = isMe ? '' : 'disabled';
                     html += `<div class="border ${active ? 'border-emerald-200 bg-emerald-50/40' : 'border-red-200 bg-red-50/40'} p-3 rounded-2xl flex items-center justify-between gap-2 ${isMe ? '' : 'opacity-60'}">
                         <div class="flex items-center gap-2"><div class="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs ${active ? 'bg-emerald-500' : 'bg-red-500'}"><i class="fa-solid ${t.icon}"></i></div><span class="text-xs font-bold">${t.nomi}</span></div>
-                        <button onclick="toggleAdminRuxsat('${a.id}','${t.key}', ${!active})" ${disabledAttr} class="admin-toggle ${active ? 'active' : 'inactive'} text-white px-3 py-1.5 rounded-xl text-xs font-bold">${active ? 'Oâ€˜chirish' : 'Yoqish'}</button>
+                        <button onclick="toggleAdminRuxsat('${a.id}','${t.key}', ${!active})" ${disabledAttr} class="admin-toggle ${active ? 'active' : 'inactive'} text-white px-3 py-1.5 rounded-xl text-xs font-bold">${active ? 'O‘chirish' : 'Yoqish'}</button>
                     </div>`;
                 }
                 html += `</div></div>`;
@@ -3644,7 +3644,7 @@
             const current = await getCurrentUser();
             if (current.id !== adminId) { alert("Faqat o'zingizning ruxsatlaringizni o'zgartira olasiz!"); return; }
             await update(ref(db, `adminRuxsatlar/${adminId}`), { [key]: value });
-            alert(value ? `âœ… Yoqildi` : `âŒ O'chirildi`);
+            alert(value ? `✅ Yoqildi` : `❌ O'chirildi`);
             renderAdminAdminRuxsatlar(document.getElementById('tabContent'));
         };
 
@@ -3662,13 +3662,13 @@
                 <div class="bg-white/70 backdrop-blur-sm p-6 rounded-3xl shadow-sm border border-indigo-100 space-y-6">
                     <div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-bullhorn text-purple-500 mr-3"></i>Yangiliklar boshqaruvi</h2></div>
                     <div class="bg-gray-50/80 p-4 rounded-3xl border-2 border-dashed border-indigo-200 space-y-3"><h4 class="text-xs font-bold text-gray-700 uppercase">Yangi yangilik</h4><input type="text" id="adminYangilikSarlavha" placeholder="Sarlavha" class="w-full border-2 border-indigo-200 px-4 py-3 rounded-2xl bg-white"><textarea id="adminYangilikMatn" placeholder="Matn" rows="3" class="w-full border-2 border-indigo-200 px-4 py-3 rounded-2xl bg-white"></textarea><div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs"><div><label class="text-gray-500">Rasm</label><input type="file" accept="image/*" id="adminYangilikRasm" class="w-full border-2 border-indigo-200 p-1 rounded-xl bg-white file-input"></div><div><label class="text-gray-500">Video</label><input type="file" accept="video/*" id="adminYangilikVideo" class="w-full border-2 border-indigo-200 p-1 rounded-xl bg-white file-input"></div></div><button id="addYangilikBtn" class="bg-indigo-600 text-white px-6 py-2.5 rounded-2xl font-bold text-xs shadow">E'lon qilish</button></div>
-                    <div class="space-y-3"><h4 class="text-sm font-bold">Mavjudlar</h4>${listHtml || '<p class="text-gray-400">Yoâ€˜q</p>'}</div>
+                    <div class="space-y-3"><h4 class="text-sm font-bold">Mavjudlar</h4>${listHtml || '<p class="text-gray-400">Yo‘q</p>'}</div>
                 </div>
             `;
             document.getElementById('addYangilikBtn').addEventListener('click', async () => {
                 const sarlavha = document.getElementById('adminYangilikSarlavha').value.trim(); const matn = document.getElementById('adminYangilikMatn').value.trim();
                 const rasmInput = document.getElementById('adminYangilikRasm'); const videoInput = document.getElementById('adminYangilikVideo');
-                if (!sarlavha || !matn) { alert("Toâ€˜ldiring!"); return; }
+                if (!sarlavha || !matn) { alert("To‘ldiring!"); return; }
                 let rasmUrl = '', videoUrl = '';
                 if (rasmInput.files && rasmInput.files[0]) rasmUrl = await readFileCompressed(rasmInput.files[0], 1000, 1000, 0.78);
                 if (videoInput.files && videoInput.files[0]) videoUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(videoInput.files[0]); });
@@ -3730,16 +3730,16 @@
                     const x = xList[xKey]; let media = ''; if (x.rasmUrl) media += `<img src="${x.rasmUrl}" class="h-16 object-contain rounded-xl border mt-1">`; if (x.videoUrl) media += `<video src="${x.videoUrl}" class="h-16 object-contain rounded-xl border mt-1" controls></video>`;
                     xHtml += `<div class="bg-white p-4 rounded-2xl border text-sm flex justify-between items-start gap-3"><div class="space-y-1 flex-1"><div class="flex items-center gap-2"><h5 class="font-bold">${x.nomi}</h5>${x.targetId ? `<span class="bg-purple-100 text-purple-700 text-[10px] px-2 py-0.5 rounded font-bold">ID: ${x.targetId}</span>` : '<span class="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded font-bold">Hamma</span>'}</div><p class="text-xs text-gray-600 whitespace-pre-wrap">${x.matn}</p>${media}</div><div class="flex gap-1"><button onclick="openEditXabarModal('${bKey}','${xKey}')" class="text-blue-600 bg-blue-50 px-3 py-1.5 rounded-2xl font-bold text-xs"><i class="fa-regular fa-pen"></i></button><button onclick="deleteXabar('${bKey}','${xKey}')" class="text-red-600 bg-red-50 px-3 py-1.5 rounded-2xl font-bold text-xs"><i class="fa-regular fa-trash"></i></button></div></div>`;
                 }
-                html += `<div class="border p-5 rounded-3xl bg-gray-50/60 space-y-4"><div class="flex justify-between items-center border-b pb-2"><h3 class="font-bold text-lg text-indigo-700">${b.nomi} <span class="text-xs bg-gray-200 px-2 py-0.5 rounded-full">${Object.keys(xList).length}</span></h3><div class="space-x-2"><button onclick="openEditBolimModal('${bKey}','${b.nomi}')" class="text-blue-600 font-bold text-xs bg-blue-50 px-4 py-1.5 rounded-2xl border">Tahrirlash</button><button onclick="deleteBolim('${bKey}')" class="text-red-600 text-xs font-bold bg-red-50 px-4 py-1.5 rounded-2xl border">O'chirish</button></div></div><div class="space-y-2">${xHtml || '<p class="text-xs text-gray-400">Xabarlar yoâ€˜q</p>'}</div><div class="space-y-3 pt-3 border-t bg-white p-4 rounded-3xl border"><h4 class="text-xs font-bold uppercase">Yangi xabar</h4><div class="grid grid-cols-1 md:grid-cols-2 gap-2"><input type="text" id="xabarNomi_${bKey}" placeholder="Sarlavha" class="border-2 border-indigo-200 px-3 py-2.5 rounded-2xl text-sm bg-white"><select id="xabarTarget_${bKey}" class="border-2 border-indigo-200 px-3 py-2.5 rounded-2xl text-sm bg-white"><option value="">-- Hamma --</option>${Object.keys(users).map(uId => `<option value="${uId}">ID: ${uId}</option>`).join('')}</select></div><textarea id="xabarMatni_${bKey}" rows="2" placeholder="Matn" class="w-full border-2 border-indigo-200 px-3 py-2.5 rounded-2xl text-sm bg-white"></textarea><div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs"><div><label>Rasm</label><input type="file" accept="image/*" id="xabarRasm_${bKey}" class="w-full border-2 border-indigo-200 p-1 rounded-xl bg-white file-input"></div><div><label>Video</label><input type="file" accept="video/*" id="xabarVideo_${bKey}" class="w-full border-2 border-indigo-200 p-1 rounded-xl bg-white file-input"></div></div><button onclick="addXabarToBolim('${bKey}')" class="bg-slate-800 text-white px-5 py-2.5 rounded-2xl text-xs font-bold shadow">Yuborish</button></div></div>`;
+                html += `<div class="border p-5 rounded-3xl bg-gray-50/60 space-y-4"><div class="flex justify-between items-center border-b pb-2"><h3 class="font-bold text-lg text-indigo-700">${b.nomi} <span class="text-xs bg-gray-200 px-2 py-0.5 rounded-full">${Object.keys(xList).length}</span></h3><div class="space-x-2"><button onclick="openEditBolimModal('${bKey}','${b.nomi}')" class="text-blue-600 font-bold text-xs bg-blue-50 px-4 py-1.5 rounded-2xl border">Tahrirlash</button><button onclick="deleteBolim('${bKey}')" class="text-red-600 text-xs font-bold bg-red-50 px-4 py-1.5 rounded-2xl border">O'chirish</button></div></div><div class="space-y-2">${xHtml || '<p class="text-xs text-gray-400">Xabarlar yo‘q</p>'}</div><div class="space-y-3 pt-3 border-t bg-white p-4 rounded-3xl border"><h4 class="text-xs font-bold uppercase">Yangi xabar</h4><div class="grid grid-cols-1 md:grid-cols-2 gap-2"><input type="text" id="xabarNomi_${bKey}" placeholder="Sarlavha" class="border-2 border-indigo-200 px-3 py-2.5 rounded-2xl text-sm bg-white"><select id="xabarTarget_${bKey}" class="border-2 border-indigo-200 px-3 py-2.5 rounded-2xl text-sm bg-white"><option value="">-- Hamma --</option>${Object.keys(users).map(uId => `<option value="${uId}">ID: ${uId}</option>`).join('')}</select></div><textarea id="xabarMatni_${bKey}" rows="2" placeholder="Matn" class="w-full border-2 border-indigo-200 px-3 py-2.5 rounded-2xl text-sm bg-white"></textarea><div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs"><div><label>Rasm</label><input type="file" accept="image/*" id="xabarRasm_${bKey}" class="w-full border-2 border-indigo-200 p-1 rounded-xl bg-white file-input"></div><div><label>Video</label><input type="file" accept="video/*" id="xabarVideo_${bKey}" class="w-full border-2 border-indigo-200 p-1 rounded-xl bg-white file-input"></div></div><button onclick="addXabarToBolim('${bKey}')" class="bg-slate-800 text-white px-5 py-2.5 rounded-2xl text-xs font-bold shadow">Yuborish</button></div></div>`;
             }
-            listDiv.innerHTML = html || '<p class="text-gray-400 text-sm">Boâ€˜limlar yoâ€˜q</p>';
+            listDiv.innerHTML = html || '<p class="text-gray-400 text-sm">Bo‘limlar yo‘q</p>';
         }
         window.openEditBolimModal = async function(bKey, eski) { const y = prompt("Yangi nom:", eski); if (y && y.trim()) { await update(ref(db, `xabarlarBolimlari/${bKey}`), { nomi: y.trim() }); CACHE.xabarlar = null; loadAdminBolimlarList(); } };
         window.deleteBolim = async function(bKey) { if (confirm("O'chirilsin?")) { await remove(ref(db, `xabarlarBolimlari/${bKey}`)); CACHE.xabarlar = null; loadAdminBolimlarList(); } };
         window.addXabarToBolim = async function(bKey) {
             const nomi = document.getElementById(`xabarNomi_${bKey}`).value.trim(); const matn = document.getElementById(`xabarMatni_${bKey}`).value.trim(); const target = document.getElementById(`xabarTarget_${bKey}`).value;
             const rasmInput = document.getElementById(`xabarRasm_${bKey}`); const videoInput = document.getElementById(`xabarVideo_${bKey}`);
-            if (!nomi || !matn) { alert("Toâ€˜ldiring!"); return; }
+            if (!nomi || !matn) { alert("To‘ldiring!"); return; }
             let rasmUrl = '', videoUrl = '';
             if (rasmInput.files && rasmInput.files[0]) rasmUrl = await readFileCompressed(rasmInput.files[0], 1000, 1000, 0.78);
             if (videoInput.files && videoInput.files[0]) videoUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(videoInput.files[0]); });
@@ -3788,12 +3788,12 @@
                 <div class="bg-white/70 backdrop-blur-sm p-6 rounded-3xl shadow-sm border border-indigo-100 space-y-6">
                     <div><h2 class="text-2xl font-bold text-gray-800"><i class="fa-regular fa-wrench text-purple-500 mr-3"></i>Texnik ishlar</h2></div>
                     <div class="bg-gray-50/80 p-4 rounded-3xl border-2 border-dashed border-indigo-200 space-y-3"><input type="text" id="texnikSarlavha" placeholder="Sarlavha" class="w-full border-2 border-indigo-200 px-4 py-3 rounded-2xl bg-white"><textarea id="texnikMatn" placeholder="Matn" rows="3" class="w-full border-2 border-indigo-200 px-4 py-3 rounded-2xl bg-white"></textarea><button id="addTexnikBtn" class="bg-indigo-600 text-white px-6 py-2.5 rounded-2xl font-bold text-xs shadow">Qo'shish</button></div>
-                    <div class="space-y-3"><h4 class="text-sm font-bold">Mavjud yozuvlar</h4>${listHtml || '<p class="text-gray-400">Yoâ€˜q</p>'}</div>
+                    <div class="space-y-3"><h4 class="text-sm font-bold">Mavjud yozuvlar</h4>${listHtml || '<p class="text-gray-400">Yo‘q</p>'}</div>
                 </div>
             `;
             document.getElementById('addTexnikBtn').addEventListener('click', async () => {
                 const sarlavha = document.getElementById('texnikSarlavha').value.trim(); const matn = document.getElementById('texnikMatn').value.trim();
-                if (!sarlavha || !matn) { alert("Toâ€˜ldiring!"); return; }
+                if (!sarlavha || !matn) { alert("To‘ldiring!"); return; }
                 await push(ref(db, 'texnikIshlar'), { sarlavha, matn, sana: new Date().toLocaleString() });
                 renderAdminTexnik(container);
             });
@@ -3814,7 +3814,7 @@
         };
         window.saveEditedTexnik = async function(tKey) {
             const sarlavha = document.getElementById('editTexnikSarlavha').value.trim(); const matn = document.getElementById('editTexnikMatn').value.trim();
-            if (!sarlavha || !matn) { alert("Toâ€˜ldiring!"); return; }
+            if (!sarlavha || !matn) { alert("To‘ldiring!"); return; }
             await update(ref(db, `texnikIshlar/${tKey}`), { sarlavha, matn });
             closeModal(); renderAdminTexnik(document.getElementById('tabContent'));
         };
