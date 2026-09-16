@@ -121,8 +121,6 @@
         }
 
         // ============ XUSUSIYAT PARSER (JSON + OLD FORMAT) ============
-        // Yangi format: JSON array [{nomi, narx, soni, rasmUrl}]
-        // Eski format: "S:100000, M:110000, L:120000"
         function parseVariantlar(variantlarStr) {
             if (!variantlarStr) return [];
             if (typeof variantlarStr === 'string' && variantlarStr.trim().startsWith('[')) {
@@ -156,7 +154,6 @@
             })));
         }
 
-        // Xususiyatdagi variantning ombor soni (agar belgilanmagan bo'lsa null - mahsulot soni ishlatiladi)
         function getVariantStock(xususiyat, variantNomi) {
             if (!xususiyat) return null;
             const parsed = parseVariantlar(xususiyat.variantlar);
@@ -164,7 +161,6 @@
             return found ? found.soni : null;
         }
 
-        // Berilgan mahsulot va tanlangan variantlar uchun mavjud eng kichik ombor sonini qaytaradi
         function getAvailableQtyForSelection(mahsulot, selectedVars) {
             let avail = null;
             if (!mahsulot.xususiyatlar || !mahsulot.xususiyatlar.length) return parseInt(mahsulot.soni) || 0;
@@ -628,7 +624,6 @@
         }
 
         // ==================== UZUM MARKET ====================
-        // Variant tugmalari render (rasmli yoki oddiy)
         function renderVariantControls(m, x, xi, mId, selectedVarName, prefix = 'selectVariant') {
             const parsed = parseVariantlar(x.variantlar);
             if (!parsed.length) return '';
@@ -691,7 +686,6 @@
                     const eskiNarx = m.eskiNarx ? `<span class="text-xs text-gray-400 line-through">${m.eskiNarx} so'm</span>` : '';
                     const soni = parseInt(m.soni) || 0;
 
-                    // Variantlarni boshlang'ich tanlash
                     if (!window._selectedVariants[mId]) window._selectedVariants[mId] = {};
                     if (m.xususiyatlar && m.xususiyatlar.length) {
                         m.xususiyatlar.forEach((x, xi) => {
@@ -763,16 +757,13 @@
             if (!window._selectedVariants[mId]) window._selectedVariants[mId] = {};
             window._selectedVariants[mId][xusIdx] = variantNomi;
             updateMahsulotNarxDisplay(mId);
-            // Update stock display
             const mahsulotlar = CACHE.mahsulotlar || {};
             const m = mahsulotlar[mId];
             if (m) {
                 const avail = getAvailableQtyForSelection(m, window._selectedVariants[mId]);
-                // Re-render to update disabled/enabled state
                 const grid = document.getElementById('uzumMahsulotlarGrid');
                 if (grid) {
                     const search = document.getElementById('uzumSearch');
-                    // simple targeted update: re-run draw by simulating search
                     const evt = new Event('input');
                     if (search) search.dispatchEvent(evt);
                 }
@@ -822,7 +813,6 @@
                 xususiyatlarHtml = m.xususiyatlar.map((x, xi) => renderVariantControls(m, x, xi, mId, selectedVars[xi], 'selectFullVariant')).join('');
             }
 
-            // Asosiy rasm - birinchi tanlangan rasmli variant rasmi bo'lsa, o'shani ko'rsatamiz
             let mainImgUrl = imgs[0] || '';
             if (m.xususiyatlar && m.xususiyatlar.length) {
                 for (let xi in selectedVars) {
@@ -892,7 +882,6 @@
             window._selectedVariants[mId][xusIdx] = variantNomi;
             updateFullViewNarx(mId);
             updateMahsulotNarxDisplay(mId);
-            // Asosiy rasmni yangilash (rasmli variant bo'lsa)
             const mahsulotlar = CACHE.mahsulotlar || {};
             const m = mahsulotlar[mId];
             if (m && m.xususiyatlar && m.xususiyatlar[xusIdx]) {
@@ -903,7 +892,6 @@
                     if (imgEl) imgEl.src = found.rasmUrl;
                 }
             }
-            // Ombor holatini yangilash
             if (m) {
                 const avail = getAvailableQtyForSelection(m, window._selectedVariants[mId]);
                 const stockEl = document.querySelector('#fullXususiyatlar')?.parentElement?.querySelector('.bg-emerald-100, .bg-red-100');
@@ -958,7 +946,6 @@
             catch(e) { alert("Xatolik: " + e.message); CACHE.fikrlar = null; }
         };
 
-        // Savatdagi bir xil mahsulot+varianti sonini hisoblash
         function getCartQtyForVariant(mId, selectedVars) {
             let total = 0;
             for (let k in savat) {
@@ -1053,7 +1040,6 @@
                     if (isChecked) { jamiSelected += sum; countSelected += it.soni || 0; }
 
                     const imgs = getProductImages(m);
-                    // Variant rasmi bo'lsa, o'shani ko'rsatish
                     let displayImg = imgs[0] || '';
                     if (it.tanlanganVariantlar && m.xususiyatlar) {
                         for (let xi in it.tanlanganVariantlar) {
@@ -1203,7 +1189,6 @@
             document.getElementById('confirmCheckoutBtn').addEventListener('click', () => submitCheckout(selectedKeys));
         };
 
-        // Variant omborini kamaytirish
         async function decreaseVariantStock(mId, tanlanganVariantlar, qty) {
             if (!tanlanganVariantlar || !Object.keys(tanlanganVariantlar).length) return;
             const mSnap = await get(ref(db, `mahsulotlar/${mId}`));
@@ -1228,7 +1213,6 @@
             }
         }
 
-        // Variant omborini qaytarish (buyurtma o'chirilganda)
         async function restoreVariantStock(mId, tanlanganVariantlar, qty) {
             if (!tanlanganVariantlar || !Object.keys(tanlanganVariantlar).length) return;
             const mSnap = await get(ref(db, `mahsulotlar/${mId}`));
@@ -1289,7 +1273,6 @@
                 const mId = it.mahsulotId || key.split('_')[0];
                 const m = mahsulotlar[mId];
                 const imgs = getProductImages(m);
-                // Variant rasm bo'lsa, o'shani ishlatish
                 let itemRasm = imgs[0] || '';
                 if (it.tanlanganVariantlar && m.xususiyatlar) {
                     for (let xi in it.tanlanganVariantlar) {
@@ -1312,7 +1295,6 @@
                 });
                 jami += it.narx * it.soni;
                 if (!birinchiRasm && itemRasm) birinchiRasm = itemRasm;
-                // Faqat variant omborini kamaytirish - mahsulot soni (m.soni) tegmaydi!
                 await decreaseVariantStock(mId, it.tanlanganVariantlar || {}, it.soni);
             }
             CACHE.mahsulotlar = null;
@@ -1560,6 +1542,24 @@
                         </div>
                     `;
 
+                    // BUYURTMA MAYDONLARINI KO'RSATISH
+                    let maydonlarHtml = '';
+                    if (b.qiymatlar && Object.keys(b.qiymatlar).length) {
+                        let inner = '';
+                        for (let mk in b.qiymatlar) {
+                            const val = b.qiymatlar[mk];
+                            if (typeof val === 'object' && val.qiymat) {
+                                inner += `<div class="bg-white p-2 rounded-xl border text-xs"><span class="text-gray-400 uppercase text-[10px] font-bold">${mk}</span><div class="font-semibold text-gray-800">${val.qiymat}</div></div>`;
+                            } else if (typeof val === 'object' && val.files) {
+                                // fayllar uchun renderFieldItem ishlatilishi mumkin, lekin bu yerda oddiy ko'rsatamiz
+                                inner += `<div class="bg-white p-2 rounded-xl border text-xs"><span class="text-gray-400 uppercase text-[10px] font-bold">${mk}</span><div class="font-semibold text-gray-800">${val.nomi || 'Fayl'}</div></div>`;
+                            } else {
+                                inner += `<div class="bg-white p-2 rounded-xl border text-xs"><span class="text-gray-400 uppercase text-[10px] font-bold">${mk}</span><div class="font-semibold text-gray-800">${val}</div></div>`;
+                            }
+                        }
+                        maydonlarHtml = `<div class="bg-blue-50/40 p-3 rounded-2xl border border-blue-100"><div class="text-[10px] uppercase font-bold text-blue-600 mb-2"><i class="fa-regular fa-rectangle-list mr-1"></i>Buyurtma maydonlari</div><div class="grid grid-cols-2 md:grid-cols-3 gap-2">${inner}</div></div>`;
+                    }
+
                     html += `
                         <div class="border p-5 rounded-3xl bg-white shadow-sm space-y-3">
                             <div class="flex justify-between items-center border-b pb-3 flex-wrap gap-2">
@@ -1575,11 +1575,7 @@
                                 ${eslatmaHtml}
                             </div>
                             ${itemsListHtml}
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
-                                ${b.tel ? `<div class="bg-blue-50 p-2 rounded-xl border border-blue-100"><span class="text-gray-500">Tel:</span> <b>${b.tel}</b></div>` : ''}
-                                ${b.manzil ? `<div class="bg-emerald-50 p-2 rounded-xl border border-emerald-100 col-span-2"><span class="text-gray-500">Manzil:</span> <b>${b.manzil}</b></div>` : ''}
-                                ${b.izoh ? `<div class="bg-gray-50 p-2 rounded-xl border border-gray-200 col-span-3 italic"><span class="text-gray-500">Izoh:</span> ${b.izoh}</div>` : ''}
-                            </div>
+                            ${maydonlarHtml}
                             <div class="flex justify-between items-center pt-3 border-t-2 border-purple-200">
                                 <span class="font-bold">Umumiy jami:</span>
                                 <span class="font-extrabold text-purple-700 text-lg">${(b.jami || 0).toLocaleString()} so'm</span>
@@ -1617,7 +1613,6 @@
             if (b && b.items && b.items.length) {
                 for (let it of b.items) {
                     if (!it.mahsulotId) continue;
-                    // Variant omborini qaytarish
                     if (it.tanlanganVariantlar) {
                         await restoreVariantStock(it.mahsulotId, it.tanlanganVariantlar, it.soni);
                     }
@@ -1857,7 +1852,6 @@
 
                 if (canEditProducts) {
                     if (editItems.length === 0) { alert("Kamida bitta mahsulot bo'lishi kerak!"); return; }
-                    // Eslatma: bu yerda soddalashtirilgan - variant omborini qayta hisoblash murakkab
                     const jami = editItems.reduce((s, it) => s + ((parseInt(it.narx) || 0) * (parseInt(it.soni) || 0)), 0);
                     updateData.items = editItems;
                     updateData.jami = jami;
@@ -1913,7 +1907,6 @@
                 if (el) el.innerHTML = listHtml || '<p class="text-gray-400">Yo\'q</p>';
             }
 
-            // Variant qatori HTML
             function variantRowHtml(prefix, xi, vi, v = {}) {
                 return `
                     <div class="variant-row bg-white p-2 rounded-xl border-2 border-gray-200 space-y-1" data-vi="${vi}">
@@ -1975,7 +1968,6 @@
                 </div>
             `;
 
-            // Xususiyat qo'shish
             document.getElementById('addXususiyatBtn').addEventListener('click', () => {
                 const list = document.getElementById('xususiyatList');
                 const div = document.createElement('div');
@@ -2006,7 +1998,6 @@
                     vlist.appendChild(row);
                 });
                 list.appendChild(div);
-                // Avtomatik bitta variant qo'shamiz
                 div.querySelector('.add-variant-btn').click();
             });
 
@@ -2271,7 +2262,6 @@
                 rasmUrls = rasmUrls.concat(yangiRasmlar);
             }
 
-            // Xususiyatlarni yig'ish
             const xususiyatlar = [];
             document.querySelectorAll('.xus-item').forEach(xusDiv => {
                 const n = xusDiv.querySelector('.xus-nomi')?.value.trim();
@@ -2434,6 +2424,23 @@
                         </div>
                     `;
 
+                    // BUYURTMA MAYDONLARINI KO'RSATISH
+                    let maydonlarHtml = '';
+                    if (b.qiymatlar && Object.keys(b.qiymatlar).length) {
+                        let inner = '';
+                        for (let mk in b.qiymatlar) {
+                            const val = b.qiymatlar[mk];
+                            if (typeof val === 'object' && val.qiymat) {
+                                inner += `<div class="bg-white p-2 rounded-xl border text-xs"><span class="text-gray-400 uppercase text-[10px] font-bold">${mk}</span><div class="font-semibold text-gray-800">${val.qiymat}</div></div>`;
+                            } else if (typeof val === 'object' && val.files) {
+                                inner += `<div class="bg-white p-2 rounded-xl border text-xs"><span class="text-gray-400 uppercase text-[10px] font-bold">${mk}</span><div class="font-semibold text-gray-800">${val.nomi || 'Fayl'}</div></div>`;
+                            } else {
+                                inner += `<div class="bg-white p-2 rounded-xl border text-xs"><span class="text-gray-400 uppercase text-[10px] font-bold">${mk}</span><div class="font-semibold text-gray-800">${val}</div></div>`;
+                            }
+                        }
+                        maydonlarHtml = `<div class="bg-blue-50/40 p-3 rounded-2xl border border-blue-100"><div class="text-[10px] uppercase font-bold text-blue-600 mb-2"><i class="fa-regular fa-rectangle-list mr-1"></i>Buyurtma maydonlari</div><div class="grid grid-cols-2 md:grid-cols-3 gap-2">${inner}</div></div>`;
+                    }
+
                     html += `
                         <div class="border p-5 rounded-3xl bg-white shadow-sm space-y-3">
                             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b pb-3">
@@ -2450,11 +2457,7 @@
                                 ${eslatmaHtml}
                             </div>
                             ${itemsListHtml}
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-                                <div class="bg-blue-50 p-2 rounded-xl border border-blue-100">Tel: <b>${b.tel || '—'}</b></div>
-                                <div class="bg-emerald-50 p-2 rounded-xl border border-emerald-100">Manzil: <b>${b.manzil || '—'}</b></div>
-                                ${b.izoh ? `<div class="bg-gray-50 p-2 rounded-xl border col-span-2 italic">Izoh: ${b.izoh}</div>` : ''}
-                            </div>
+                            ${maydonlarHtml}
                             <div class="flex justify-between items-center pt-2 border-t"><span class="font-bold">Jami:</span><span class="font-extrabold text-purple-700 text-lg">${(b.jami || 0).toLocaleString()} so'm</span></div>
                             <div class="pt-3 border-t space-y-2"><label class="block text-xs font-bold text-gray-700 uppercase">Javob:</label><textarea id="adminBuyurtmaJavob_${id}" rows="2" class="w-full border-2 border-purple-200 px-4 py-3 rounded-2xl text-sm bg-gray-50">${b.javob || ''}</textarea><button onclick="saveAdminBuyurtmaJavob('${id}')" class="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-5 py-2 rounded-2xl text-xs font-bold shadow hover:shadow-lg">Saqlash</button></div>
                         </div>
